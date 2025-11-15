@@ -241,9 +241,9 @@ class TestLogCorrelation(unittest.TestCase):
     def test_correlate_logs(self):
         """Test correlating multiple logs into timeline."""
         parsed_logs = {
-            'jstack': parse_jstack(SAMPLE_JSTACK),
-            'strace': parse_strace(SAMPLE_STRACE),
-            'gc': parse_gc_log(SAMPLE_GC_LOG)
+            'jstack': parse_log(SAMPLE_JSTACK),
+            'strace': parse_log(SAMPLE_STRACE),
+            'gc': parse_log(SAMPLE_GC_LOG)
         }
 
         timeline = correlate_logs(parsed_logs)
@@ -257,8 +257,8 @@ class TestLogCorrelation(unittest.TestCase):
     def test_timeline_sorting(self):
         """Test that timeline events are sorted by timestamp."""
         parsed_logs = {
-            'gc': parse_gc_log(SAMPLE_GC_LOG),
-            'strace': parse_strace(SAMPLE_STRACE)
+            'gc': parse_log(SAMPLE_GC_LOG),
+            'strace': parse_log(SAMPLE_STRACE)
         }
 
         timeline = correlate_logs(parsed_logs)
@@ -279,7 +279,7 @@ class TestPatternDetection(unittest.TestCase):
 
     def test_detect_deadlock(self):
         """Test deadlock pattern detection."""
-        parsed_logs = {'jstack': parse_jstack(SAMPLE_JSTACK)}
+        parsed_logs = {'jstack': parse_log(SAMPLE_JSTACK)}
         timeline = correlate_logs(parsed_logs)
         patterns = detect_deadlock_pattern(timeline)
 
@@ -301,7 +301,7 @@ class TestPatternDetection(unittest.TestCase):
 [2024-11-15T14:01:30.000+0000][gc] GC(9) Pause Young 50M->15M(100M) 450.0ms
 [2024-11-15T14:01:40.000+0000][gc] GC(10) Pause Young 50M->20M(100M) 500.0ms"""
 
-        parsed_logs = {'gc': parse_gc_log(gc_log_with_pressure)}
+        parsed_logs = {'gc': parse_log(gc_log_with_pressure)}
         timeline = correlate_logs(parsed_logs)
         patterns = detect_memory_pressure_pattern(timeline)
 
@@ -311,8 +311,8 @@ class TestPatternDetection(unittest.TestCase):
     def test_detect_gc_caused_blocking(self):
         """Test GC-caused I/O blocking pattern."""
         parsed_logs = {
-            'gc': parse_gc_log(SAMPLE_GC_LOG),
-            'strace': parse_strace(SAMPLE_STRACE)
+            'gc': parse_log(SAMPLE_GC_LOG),
+            'strace': parse_log(SAMPLE_STRACE)
         }
 
         timeline = correlate_logs(parsed_logs)
@@ -325,9 +325,9 @@ class TestPatternDetection(unittest.TestCase):
     def test_detect_all_patterns(self):
         """Test running all pattern detectors."""
         parsed_logs = {
-            'jstack': parse_jstack(SAMPLE_JSTACK),
-            'gc': parse_gc_log(SAMPLE_GC_LOG),
-            'strace': parse_strace(SAMPLE_STRACE)
+            'jstack': parse_log(SAMPLE_JSTACK),
+            'gc': parse_log(SAMPLE_GC_LOG),
+            'strace': parse_log(SAMPLE_STRACE)
         }
 
         timeline = correlate_logs(parsed_logs)
@@ -406,7 +406,7 @@ class TestPerformance(unittest.TestCase):
         """Test parsing reasonably large logs."""
         # Create a large syslog (1000 lines)
         large_syslog = "\n".join([
-            f"Nov 15 14:30:{i:02d} hostname app[12345]: INFO: Message {i}"
+            f"Nov 15 {14 + i//3600:02d}:{(i//60)%60:02d}:{i%60:02d} hostname app[12345]: INFO: Message {i}"
             for i in range(1000)
         ])
 
