@@ -14,7 +14,6 @@ import time
 import tempfile
 import threading
 import asyncio
-import subprocess
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List
@@ -45,33 +44,6 @@ class REPLResult:
             f"  stdout={repr(self.stdout[:100])},\n"
             f"  stderr={repr(self.stderr[:100])},\n"
             f"  num_locals={len(self.locals)},\n"
-            f"  execution_time={self.execution_time:.4f}s\n"
-            f")"
-        )
-
-
-@dataclass
-class ShellResult:
-    """
-    Result of executing shell commands.
-
-    Attributes:
-        stdout: Standard output captured during execution
-        stderr: Standard error captured during execution
-        returncode: Exit code from the shell command
-        execution_time: Time taken to execute (in seconds)
-    """
-    stdout: str
-    stderr: str
-    returncode: int
-    execution_time: float
-
-    def __str__(self) -> str:
-        return (
-            f"ShellResult(\n"
-            f"  stdout={repr(self.stdout[:100])},\n"
-            f"  stderr={repr(self.stderr[:100])},\n"
-            f"  returncode={self.returncode},\n"
             f"  execution_time={self.execution_time:.4f}s\n"
             f")"
         )
@@ -671,56 +643,6 @@ async def __async_exec():
             stdout=stdout_content,
             stderr=stderr_content,
             locals=self.locals.copy(),
-            execution_time=execution_time
-        )
-
-    def shell_execution(self, command: str, timeout: int = 300) -> ShellResult:
-        """
-        Execute shell commands in the temporary directory.
-
-        Args:
-            command: Shell command(s) to execute
-            timeout: Maximum execution time in seconds (default: 300)
-
-        Returns:
-            ShellResult: Execution results with stdout, stderr, returncode, time
-        """
-        start_time = time.time()
-
-        try:
-            # Execute command in the temp directory using bash
-            process = subprocess.run(
-                command,
-                shell=True,
-                cwd=self.temp_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout,
-                executable='/bin/bash'
-            )
-
-            stdout_content = process.stdout
-            stderr_content = process.stderr
-            returncode = process.returncode
-
-        except subprocess.TimeoutExpired:
-            stdout_content = ""
-            stderr_content = f"Command timed out after {timeout} seconds"
-            returncode = -1
-
-        except Exception as e:
-            stdout_content = ""
-            stderr_content = f"Error executing shell command: {str(e)}"
-            returncode = -1
-
-        end_time = time.time()
-        execution_time = end_time - start_time
-
-        return ShellResult(
-            stdout=stdout_content,
-            stderr=stderr_content,
-            returncode=returncode,
             execution_time=execution_time
         )
 
