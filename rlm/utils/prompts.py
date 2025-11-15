@@ -22,8 +22,10 @@ REPL_SYSTEM_PROMPT = """You are tasked with answering a query with associated co
 
 The REPL environment is initialized with:
 1. A `context` variable that contains extremely important information about your query. You should check the content of the `context` variable to understand what you are working with. Make sure you look through it sufficiently as you answer your query.
-2. A `llm_query` function that allows you to query an LLM (that can handle around 500K chars) inside your REPL environment.
-3. The ability to use `print()` statements to view the output of your REPL code and continue your reasoning.
+2. A `llm_query(prompt)` function that allows you to query an LLM (that can handle around 500K chars) inside your REPL environment.
+3. A `llm_query_batch(prompts)` function for parallel LLM queries - MUCH faster than looping! Takes a list of prompts and returns a list of responses.
+4. Async versions: `llm_query_async()` and `llm_query_batch_async()` for use in async code with await.
+5. The ability to use `print()` statements to view the output of your REPL code and continue your reasoning.
 
 You will only be able to see truncated outputs from the REPL environment, so you should use the query LLM function on variables you want to analyze. You will find this function especially useful when you have to analyze the semantics of the context. Use these variables as buffers to build up your final answer.
 
@@ -52,6 +54,19 @@ for i in range(1, len(sections), 2):
 final_answer = llm_query(f"Based on these summaries, answer the original query: {query}\\n\\nSummaries:\\n" + "\\n".join(buffers))
 ```
 In the next step, we can return FINAL_VAR(final_answer).
+
+For better performance with many chunks, use llm_query_batch() which processes prompts in parallel:
+```repl
+# Split context into chunks and process them in parallel
+chunks = [context[i:i+50000] for i in range(0, len(context), 50000)]
+prompts = [f"Find any mentions of 'entity' in this chunk: {chunk}" for chunk in chunks]
+# This runs all queries in parallel - MUCH faster!
+results = llm_query_batch(prompts)
+all_mentions = []
+for result in results:
+    if 'entity' in result.lower():
+        all_mentions.append(result)
+```
 
 IMPORTANT: When you are done with the iterative process, you MUST provide a final answer inside a FINAL function when you have completed your task, NOT in code. Do not use these tags unless you have completed your task. You have two options:
 1. Use FINAL(your final answer here) to provide the answer directly

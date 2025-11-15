@@ -41,6 +41,7 @@ class RLM_REPL(RLM):
         recursive_model: str = "gpt-4o-mini",
         max_iterations: int = 20,
         depth: int = 0,
+        max_depth: int = 1,
         enable_logging: bool = False,
         track_costs: bool = False,
     ):
@@ -52,7 +53,8 @@ class RLM_REPL(RLM):
             model: Model for root LM (e.g., 'gpt-4o')
             recursive_model: Model for recursive sub-calls (e.g., 'gpt-4o-mini')
             max_iterations: Maximum number of root LM iterations
-            depth: Recursion depth (0 = root, currently only supports depth=1)
+            depth: Current recursion depth (0 = root)
+            max_depth: Maximum recursion depth allowed (1 = only sub-LLMs, 2+ = nested RLMs)
             enable_logging: Whether to enable colorful logging
             track_costs: Whether to track API costs
         """
@@ -70,8 +72,10 @@ class RLM_REPL(RLM):
 
         # Configuration
         self.depth = depth
+        self.max_depth = max_depth
         self._max_iterations = max_iterations
         self.track_costs = track_costs
+        self.enable_logging = enable_logging
 
         # State
         self.repl_env: Optional[REPLEnv] = None
@@ -115,6 +119,10 @@ class RLM_REPL(RLM):
             context_json=context_data,
             context_str=context_str,
             recursive_model=self.recursive_model,
+            depth=self.depth,
+            max_depth=self.max_depth,
+            enable_logging=self.enable_logging,
+            parent_rlm_class=RLM_REPL if self.max_depth > 1 else None,
         )
 
         return self.messages
