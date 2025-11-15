@@ -1,0 +1,192 @@
+{
+  "metadata": {
+    "query": "Given a large text context of 5 million characters, find all occurrences of the word 'treasure' and count them.",
+    "model": "gpt-4o",
+    "recursive_model": "gpt-4o-mini",
+    "max_depth": 2,
+    "max_iterations": 20,
+    "start_time": "2025-11-15T11:00:00Z",
+    "end_time": "2025-11-15T11:02:30Z",
+    "total_duration_seconds": 150.5
+  },
+  "execution_stack": [
+    {
+      "frame_id": "frame_0",
+      "depth": 0,
+      "type": "root_llm",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:00:01Z",
+      "state": {
+        "conversation_step": 1,
+        "message_history_length": 2,
+        "repl_locals_count": 0
+      },
+      "llm_call": {
+        "model": "gpt-4o",
+        "input_tokens": 8500,
+        "output_tokens": 280,
+        "temperature": 0.7
+      },
+      "response": "The context is too large to process in one pass. I'll split it into chunks and use recursive calls to process each chunk in parallel.",
+      "contains_code_blocks": true
+    },
+    {
+      "frame_id": "frame_0_1",
+      "depth": 0,
+      "type": "code_execution",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:00:02Z",
+      "code_block": "# Split the context into 5 chunks\ncontext_length = len(context)\nchunk_size = context_length // 5\nchunks = [context[i:i+chunk_size] for i in range(0, context_length, chunk_size)]\nprint(f\"Split context into {len(chunks)} chunks\")\nprint(f\"Average chunk size: {sum(len(c) for c in chunks) / len(chunks):.0f} characters\")",
+      "result": {
+        "stdout": "Split context into 5 chunks\nAverage chunk size: 1000000 characters\n",
+        "stderr": "",
+        "execution_time": 0.125,
+        "locals_created": ["context_length", "chunk_size", "chunks"],
+        "locals_modified": []
+      }
+    },
+    {
+      "frame_id": "frame_0_2",
+      "depth": 0,
+      "type": "recursive_call",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:00:03Z",
+      "sub_call": {
+        "prompt": "Count occurrences of the word 'treasure' in this text chunk: [chunk 0 of 1,000,000 characters]",
+        "model": "gpt-4o-mini",
+        "depth": 1,
+        "input_tokens": 15000,
+        "output_tokens": 85
+      },
+      "response": "Found 42 occurrences of 'treasure' in this chunk."
+    },
+    {
+      "frame_id": "frame_0_3",
+      "depth": 0,
+      "type": "recursive_call",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:00:25Z",
+      "sub_call": {
+        "prompt": "Count occurrences of the word 'treasure' in this text chunk: [chunk 1 of 1,000,000 characters]",
+        "model": "gpt-4o-mini",
+        "depth": 1,
+        "input_tokens": 15000,
+        "output_tokens": 82
+      },
+      "response": "Found 38 occurrences of 'treasure' in this chunk."
+    },
+    {
+      "frame_id": "frame_0_4",
+      "depth": 0,
+      "type": "recursive_call",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:00:47Z",
+      "sub_call": {
+        "prompt": "Count occurrences of the word 'treasure' in this text chunk: [chunk 2 of 1,000,000 characters]",
+        "model": "gpt-4o-mini",
+        "depth": 1,
+        "input_tokens": 15000,
+        "output_tokens": 88
+      },
+      "response": "Found 51 occurrences of 'treasure' in this chunk."
+    },
+    {
+      "frame_id": "frame_0_5",
+      "depth": 0,
+      "type": "recursive_call",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:01:10Z",
+      "sub_call": {
+        "prompt": "Count occurrences of the word 'treasure' in this text chunk: [chunk 3 of 1,000,000 characters]",
+        "model": "gpt-4o-mini",
+        "depth": 1,
+        "input_tokens": 15000,
+        "output_tokens": 79
+      },
+      "response": "Found 35 occurrences of 'treasure' in this chunk."
+    },
+    {
+      "frame_id": "frame_0_6",
+      "depth": 0,
+      "type": "recursive_call",
+      "iteration": 1,
+      "timestamp": "2025-11-15T11:01:32Z",
+      "sub_call": {
+        "prompt": "Count occurrences of the word 'treasure' in this text chunk: [chunk 4 of 1,000,000 characters]",
+        "model": "gpt-4o-mini",
+        "depth": 1,
+        "input_tokens": 15000,
+        "output_tokens": 91
+      },
+      "response": "Found 44 occurrences of 'treasure' in this chunk."
+    },
+    {
+      "frame_id": "frame_1",
+      "depth": 0,
+      "type": "root_llm",
+      "iteration": 2,
+      "timestamp": "2025-11-15T11:01:55Z",
+      "state": {
+        "conversation_step": 2,
+        "message_history_length": 12,
+        "repl_locals_count": 3
+      },
+      "llm_call": {
+        "model": "gpt-4o",
+        "input_tokens": 9200,
+        "output_tokens": 150,
+        "temperature": 0.7
+      },
+      "response": "Now I'll aggregate the results from all chunks.",
+      "contains_code_blocks": true
+    },
+    {
+      "frame_id": "frame_1_1",
+      "depth": 0,
+      "type": "code_execution",
+      "iteration": 2,
+      "timestamp": "2025-11-15T11:01:56Z",
+      "code_block": "# Parse results from recursive calls\nresults = [42, 38, 51, 35, 44]\ntotal_count = sum(results)\nprint(f\"Total occurrences across all chunks: {total_count}\")\nprint(f\"Breakdown by chunk: {results}\")",
+      "result": {
+        "stdout": "Total occurrences across all chunks: 210\nBreakdown by chunk: [42, 38, 51, 35, 44]\n",
+        "stderr": "",
+        "execution_time": 0.002,
+        "locals_created": ["results", "total_count"],
+        "locals_modified": []
+      }
+    },
+    {
+      "frame_id": "frame_2",
+      "depth": 0,
+      "type": "root_llm",
+      "iteration": 3,
+      "timestamp": "2025-11-15T11:01:58Z",
+      "state": {
+        "conversation_step": 3,
+        "message_history_length": 14,
+        "repl_locals_count": 5
+      },
+      "llm_call": {
+        "model": "gpt-4o",
+        "input_tokens": 9500,
+        "output_tokens": 95,
+        "temperature": 0.7
+      },
+      "response": "I found a total of 210 occurrences of the word 'treasure' across the entire text context. The occurrences were distributed as follows:\n- Chunk 1: 42\n- Chunk 2: 38\n- Chunk 3: 51\n- Chunk 4: 35\n- Chunk 5: 44\n\nFINAL(210)",
+      "contains_code_blocks": false,
+      "final_answer": "210"
+    }
+  ],
+  "summary": {
+    "total_iterations": 3,
+    "total_frames": 10,
+    "total_llm_calls": 8,
+    "total_code_executions": 2,
+    "total_recursive_calls": 5,
+    "max_depth_reached": 1,
+    "final_answer": "210",
+    "success": true,
+    "total_tokens_used": 102705,
+    "estimated_cost_usd": 0.5135
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "query": "What is the sum of squares of the first 10 natural numbers?",
+    "model": "gpt-4o",
+    "recursive_model": "gpt-4o-mini",
+    "max_depth": 2,
+    "max_iterations": 20,
+    "start_time": "2025-11-15T10:30:00Z",
+    "end_time": "2025-11-15T10:30:15Z",
+    "total_duration_seconds": 15.2
+  },
+  "execution_stack": [
+    {
+      "frame_id": "frame_0",
+      "depth": 0,
+      "type": "root_llm",
+      "iteration": 1,
+      "timestamp": "2025-11-15T10:30:01Z",
+      "state": {
+        "conversation_step": 1,
+        "message_history_length": 2,
+        "repl_locals_count": 0
+      },
+      "llm_call": {
+        "model": "gpt-4o",
+        "input_tokens": 450,
+        "output_tokens": 120,
+        "temperature": 0.7
+      },
+      "response": "I'll calculate the sum of squares of the first 10 natural numbers using Python code.",
+      "contains_code_blocks": true
+    },
+    {
+      "frame_id": "frame_0_1",
+      "depth": 0,
+      "type": "code_execution",
+      "iteration": 1,
+      "timestamp": "2025-11-15T10:30:02Z",
+      "code_block": "result = sum(i**2 for i in range(1, 11))\nprint(f\"Sum of squares: {result}\")",
+      "result": {
+        "stdout": "Sum of squares: 385\n",
+        "stderr": "",
+        "execution_time": 0.003,
+        "locals_created": ["result"],
+        "locals_modified": []
+      }
+    },
+    {
+      "frame_id": "frame_1",
+      "depth": 0,
+      "type": "root_llm",
+      "iteration": 2,
+      "timestamp": "2025-11-15T10:30:03Z",
+      "state": {
+        "conversation_step": 2,
+        "message_history_length": 4,
+        "repl_locals_count": 1
+      },
+      "llm_call": {
+        "model": "gpt-4o",
+        "input_tokens": 620,
+        "output_tokens": 45,
+        "temperature": 0.7
+      },
+      "response": "The sum of squares of the first 10 natural numbers is 385.\n\nFINAL(385)",
+      "contains_code_blocks": false,
+      "final_answer": "385"
+    }
+  ],
+  "summary": {
+    "total_iterations": 2,
+    "total_frames": 3,
+    "total_llm_calls": 2,
+    "total_code_executions": 1,
+    "total_recursive_calls": 0,
+    "max_depth_reached": 0,
+    "final_answer": "385",
+    "success": true,
+    "total_tokens_used": 1235,
+    "estimated_cost_usd": 0.0062
+  }
+}
