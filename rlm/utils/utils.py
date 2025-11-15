@@ -12,30 +12,28 @@ import re
 from typing import List, Dict, Optional, Tuple, Any, Union
 
 
-def find_code_blocks(text: str) -> Optional[List[Tuple[str, str]]]:
+def find_code_blocks(text: str) -> Optional[List[str]]:
     """
-    Extract code blocks from model response.
+    Extract REPL code blocks from model response.
 
-    Searches for code wrapped in triple backticks with language identifiers:
-    - ```repl for Python code
-    - ```bash or ```sh for shell commands
+    Searches for code wrapped in triple backticks with 'repl' language identifier:
+    ```repl
+    code here
+    ```
 
     Args:
         text: Model response text
 
     Returns:
-        List of tuples (language, code), or None if no blocks found
-        Language is one of: 'repl', 'bash', 'sh'
+        List of code blocks (as strings), or None if no blocks found
     """
-    # Pattern to match any code block with language identifier
-    pattern = r'```(repl|bash|sh)\s*\n(.*?)\n```'
+    pattern = r'```repl\s*\n(.*?)\n```'
     matches = re.finditer(pattern, text, re.DOTALL)
 
     results = []
     for match in matches:
-        language = match.group(1).strip()
-        code_content = match.group(2).strip()
-        results.append((language, code_content))
+        code_content = match.group(1).strip()
+        results.append(code_content)
 
     return results if results else None
 
@@ -119,44 +117,8 @@ def format_execution_result(
     return "\n\n".join(result_parts) if result_parts else "No output"
 
 
-def format_shell_result(
-    stdout: str,
-    stderr: str,
-    returncode: int
-) -> str:
-    """
-    Format shell execution result for model consumption.
-
-    Args:
-        stdout: Standard output from shell command
-        stderr: Standard error from shell command
-        returncode: Exit code from shell command
-
-    Returns:
-        Formatted string describing execution result
-    """
-    result_parts = []
-
-    # Add stdout if present
-    if stdout:
-        result_parts.append(f"Output:\n{stdout}")
-
-    # Add stderr if present
-    if stderr:
-        result_parts.append(f"Error output:\n{stderr}")
-
-    # Add return code
-    if returncode == 0:
-        result_parts.append(f"Command completed successfully (exit code: 0)")
-    else:
-        result_parts.append(f"Command failed with exit code: {returncode}")
-
-    return "\n\n".join(result_parts) if result_parts else "No output"
-
-
 def execute_code(
     repl_env,
-    language: str,
     code: str,
     repl_env_logger,
     logger
@@ -166,8 +128,7 @@ def execute_code(
 
     Args:
         repl_env: The REPL environment instance
-        language: Language type ('repl' for Python, 'bash'/'sh' for shell)
-        code: Code to execute
+        code: Python code to execute
         repl_env_logger: Logger for REPL execution
         logger: Main root logger
 
@@ -175,23 +136,13 @@ def execute_code(
         Formatted execution result string
     """
     try:
-        # Execute based on language type
-        if language == 'repl':
-            result = repl_env.code_execution(code)
-            formatted_result = format_execution_result(
-                result.stdout,
-                result.stderr,
-                result.locals
-            )
-        elif language in ['bash', 'sh']:
-            result = repl_env.shell_execution(code)
-            formatted_result = format_shell_result(
-                result.stdout,
-                result.stderr,
-                result.returncode
-            )
-        else:
-            return f"Unsupported language: {language}"
+        result = repl_env.code_execution(code)
+
+        formatted_result = format_execution_result(
+            result.stdout,
+            result.stderr,
+            result.locals
+        )
 
         # Log execution
         repl_env_logger.log_execution(
@@ -203,20 +154,18 @@ def execute_code(
         repl_env_logger.display_last()
 
         # Log to root logger
-        exec_type = "SHELL_EXECUTION" if language in ['bash', 'sh'] else "CODE_EXECUTION"
-        logger.log_tool_execution(exec_type, formatted_result)
+        logger.log_tool_execution("CODE_EXECUTION", formatted_result)
 
         return formatted_result
 
     except Exception as e:
-        error_msg = f"Error executing {language} code: {str(e)}"
-        logger.log_tool_execution("EXECUTION_ERROR", error_msg)
+        error_msg = f"Error executing code: {str(e)}"
+        logger.log_tool_execution("CODE_EXECUTION", error_msg)
         return error_msg
 
 
 def add_execution_result_to_messages(
     messages: List[Dict[str, str]],
-    language: str,
     code: str,
     result: str,
     max_character_length: int = 100000
@@ -226,7 +175,6 @@ def add_execution_result_to_messages(
 
     Args:
         messages: Current conversation messages
-        language: Language type ('repl', 'bash', 'sh')
         code: The code that was executed
         result: Result from code execution
         max_character_length: Maximum length of result to include
@@ -238,15 +186,12 @@ def add_execution_result_to_messages(
     if len(result) > max_character_length:
         result = result[:max_character_length] + "..."
 
-    # Determine language label for display
-    lang_label = "python" if language == "repl" else language
-
     # Add execution result message
     execution_message = {
         "role": "user",
         "content": (
-            f"Code executed:\n```{lang_label}\n{code}\n```\n\n"
-            f"Output:\n{result}"
+            f"Code executed:\n```python\n{code}\n```\n\n"
+            f"REPL output:\n{result}"
         )
     }
     messages.append(execution_message)
@@ -281,10 +226,9 @@ def process_code_execution(
 
     if code_blocks:
         # Execute each code block
-        for language, code in code_blocks:
+        for code in code_blocks:
             execution_result = execute_code(
                 repl_env,
-                language,
                 code,
                 repl_env_logger,
                 logger
@@ -293,7 +237,6 @@ def process_code_execution(
             # Add execution result to conversation
             messages = add_execution_result_to_messages(
                 messages,
-                language,
                 code,
                 execution_result
             )

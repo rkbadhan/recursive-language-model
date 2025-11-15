@@ -26,7 +26,6 @@ The REPL environment is initialized with:
 3. A `llm_query_batch(prompts)` function for parallel LLM queries - MUCH faster than looping! Takes a list of prompts and returns a list of responses.
 4. Async versions: `llm_query_async()` and `llm_query_batch_async()` for use in async code with await.
 5. The ability to use `print()` statements to view the output of your REPL code and continue your reasoning.
-6. Shell command execution support - you can run bash/shell commands using ```bash or ```sh code blocks.
 
 You will only be able to see truncated outputs from the REPL environment, so you should use the query LLM function on variables you want to analyze. You will find this function especially useful when you have to analyze the semantics of the context. Use these variables as buffers to build up your final answer.
 
@@ -39,12 +38,6 @@ When you want to execute Python code in the REPL environment, wrap it in triple 
 chunk = context[:10000]
 answer = llm_query(f"What is the magic number in the context? Here is the chunk: {chunk}")
 print(answer)
-```
-
-You can also execute shell commands using ```bash or ```sh code blocks. For example:
-```bash
-echo "Hello from shell"
-ls -la
 ```
 
 As an example, after analyzing the context and realizing it's separated by Markdown headers, we can maintain state through buffers by chunking the context by headers, and iteratively querying an LLM over it:
@@ -135,9 +128,8 @@ def next_action_prompt(
             f'(which contains the context) to answer the original query: '
             f'"{query}".\n\n'
             f'Continue using the REPL environment, which has the `context` '
-            f'variable, and querying sub-LLMs by writing to ```repl``` tags '
-            f'or shell commands with ```bash/```sh tags, and determine your '
-            f'answer. Your next action:'
+            f'variable, and querying sub-LLMs by writing to ```repl``` tags, '
+            f'and determine your answer. Your next action:'
         )
         return {
             "role": "user",
@@ -151,9 +143,8 @@ def next_action_prompt(
             f'environment (which contains the context) to answer the original '
             f'query: "{query}".\n\n'
             f'Continue using the REPL environment, which has the `context` '
-            f'variable, and querying sub-LLMs by writing to ```repl``` tags '
-            f'or shell commands with ```bash/```sh tags, and determine your '
-            f'answer. Your next action:'
+            f'variable, and querying sub-LLMs by writing to ```repl``` tags, '
+            f'and determine your answer. Your next action:'
         )
         return {
             "role": "user",

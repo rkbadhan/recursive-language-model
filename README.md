@@ -32,7 +32,6 @@ context = load_1M_tokens()  # Store as REPL variable
 - **Unbounded Context**: Handle 1M+ token inputs by treating context as data
 - **Recursive Exploration**: Root LM can spawn sub-LLM calls via `llm_query()`
 - **Programmable**: Full Python REPL for complex context manipulation
-- **Shell Command Support**: Execute bash/sh commands for system operations and text processing
 - **Drop-in Replacement**: `rlm.completion(context, query)` replaces `llm.completion(prompt)`
 - **Learnable Trajectories**: Exploration strategies are trainable via RL
 
@@ -178,10 +177,7 @@ for iteration in range(max_iterations):
 
     # 2. Extract and execute code blocks
     if "```repl" in response:
-        execute_in_repl(code)  # Python execution
-        add_results_to_messages()
-    elif "```bash" in response or "```sh" in response:
-        execute_shell(code)  # Shell execution
+        execute_in_repl(code)
         add_results_to_messages()
 
     # 3. Check for final answer
@@ -200,32 +196,7 @@ context  # Your huge input, loaded as Python variable
 # 2. Recursive LLM query
 result = llm_query("Summarize this chunk: " + chunk)
 
-# 3. Batch LLM queries (parallel - MUCH faster!)
-prompts = ["Query 1", "Query 2", "Query 3"]
-results = llm_query_batch(prompts)  # Process in parallel
-
-# 4. Shell command execution
-# Use ```bash or ```sh code blocks to run shell commands
-```
-
-**Shell Command Support:**
-
-In addition to Python code, you can execute shell commands using ````bash` or ````sh` code blocks:
-
-````bash
-# List files
-ls -la
-
-# Process text files
-grep "pattern" file.txt | wc -l
-
-# Combine with context files
-echo "$context_data" > temp.txt && cat temp.txt
-````
-
-**Final Answer:**
-
-```python
+# 3. Final answer
 FINAL("The answer is 42")  # Direct answer
 FINAL_VAR(my_answer)       # Return a variable
 ```
