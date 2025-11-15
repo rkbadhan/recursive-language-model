@@ -370,18 +370,80 @@ rlm = RLM_REPL(max_iterations=5)
 rlm = RLM_REPL(max_iterations=30)
 ```
 
+## ✨ New Features (v2.0)
+
+### 🚀 Async Execution & Parallel Queries
+
+RLMs now support **parallel LLM queries** for dramatic speed improvements:
+
+```python
+# OLD WAY - Sequential (slow)
+results = []
+for chunk in chunks:
+    result = llm_query(f"Process: {chunk}")
+    results.append(result)
+
+# NEW WAY - Parallel (much faster!)
+prompts = [f"Process: {chunk}" for chunk in chunks]
+results = llm_query_batch(prompts)  # All at once!
+```
+
+**Available functions:**
+- `llm_query(prompt)` - Synchronous single query
+- `llm_query_batch(prompts)` - Parallel batch queries (recommended!)
+- `llm_query_async(prompt)` - Async single query (for await)
+- `llm_query_batch_async(prompts)` - Async batch queries
+
+### 🔄 Depth > 1 Recursion
+
+Sub-RLMs can now spawn their own RLMs for **nested recursive reasoning**:
+
+```python
+# Enable depth > 1
+rlm = RLM_REPL(
+    model="gpt-4o",
+    max_depth=2,  # Allow nested RLM calls!
+)
+
+# Now sub-RLMs can recursively call other RLMs
+# Useful for hierarchical data processing
+```
+
+**Depth levels:**
+- `max_depth=1` (default): Sub-LLMs only, no recursion
+- `max_depth=2`: Sub-RLMs can spawn their own sub-LLMs
+- `max_depth=3+`: Deeper nesting for complex hierarchies
+
+**Use cases:**
+- Hierarchical document structures (company → dept → team)
+- Multi-level summarization
+- Recursive problem decomposition
+- Tree-structured data processing
+
+## 🧪 Testing New Features
+
+Run the test suite:
+
+```bash
+python test_async_depth.py
+```
+
+Tests include:
+1. **Batch Execution** - Parallel LLM query performance
+2. **Async Execution** - Async/await syntax in REPL
+3. **Depth=2 Recursion** - Nested RLM calls
+4. **Depth=3 Recursion** - Deep nesting
+
 ## 🚧 Current Limitations
 
-1. **Depth = 1 Only**: Sub-RLMs are simple LLMs, not recursive RLMs
-   - Can be extended by replacing `SubRLM` with `RLM_REPL`
-2. **Synchronous Execution**: No parallel sub-LLM calls yet
-3. **No Prefix Caching**: Each call is independent
-4. **OpenAI Only**: Other providers not yet supported
+1. **No Prefix Caching**: Each call is independent (future optimization)
+2. **OpenAI Only**: Other providers not yet supported
+3. **Thread-based Async**: Uses executor, not true async LLM calls (future: native async)
 
 ## 🔮 Future Extensions
 
-- **Depth > 1**: Nested RLMs calling RLMs
-- **Async Sub-Calls**: Parallel recursive queries
+- **True Async LLM Calls**: Native async OpenAI client
+- **Prefix Caching**: Reuse common context prefixes
 - **Multi-Provider**: Anthropic, local models
 - **Streaming**: Real-time execution feedback
 - **RL Training**: Learn optimal exploration strategies

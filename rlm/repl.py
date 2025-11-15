@@ -13,6 +13,7 @@ import json
 import time
 import tempfile
 import threading
+import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List
@@ -122,6 +123,10 @@ class REPLEnv:
         context_json: Optional[Union[Dict, List]] = None,
         context_str: Optional[str] = None,
         setup_code: Optional[str] = None,
+        depth: int = 0,
+        max_depth: int = 1,
+        enable_logging: bool = False,
+        parent_rlm_class=None,
     ):
         """
         Initialize the REPL environment.
@@ -131,6 +136,10 @@ class REPLEnv:
             context_json: Context data as JSON (dict or list)
             context_str: Context data as string
             setup_code: Optional Python code to run during initialization
+            depth: Current recursion depth (0 = root)
+            max_depth: Maximum recursion depth allowed
+            enable_logging: Whether to enable logging for recursive RLMs
+            parent_rlm_class: Class to use for recursive RLM creation (for depth > 1)
         """
         # Store original working directory
         self.original_cwd = os.getcwd()
@@ -138,8 +147,29 @@ class REPLEnv:
         # Create temporary directory for file operations
         self.temp_dir = tempfile.mkdtemp(prefix="rlm_repl_")
 
+        # Store depth configuration
+        self.depth = depth
+        self.max_depth = max_depth
+        self.recursive_model = recursive_model
+        self.enable_logging = enable_logging
+        self.parent_rlm_class = parent_rlm_class
+
         # Initialize sub-RLM for recursive calls
-        self.sub_rlm: RLM = SubRLM(model=recursive_model)
+        # Use full RLM if depth > 1 is allowed, otherwise use simple SubRLM
+        if depth < max_depth and parent_rlm_class is not None:
+            # Create a full recursive RLM for depth > 1
+            self.sub_rlm: RLM = parent_rlm_class(
+                model=recursive_model,
+                recursive_model=recursive_model,
+                max_iterations=10,  # Reasonable default for sub-RLMs
+                depth=depth + 1,
+                max_depth=max_depth,
+                enable_logging=enable_logging,
+                track_costs=False,  # Avoid nested cost tracking
+            )
+        else:
+            # Use simple SubRLM for depth=1 or when max_depth reached
+            self.sub_rlm: RLM = SubRLM(model=recursive_model)
 
         # Setup safe execution environment
         self.globals = self._create_safe_globals()
@@ -222,7 +252,7 @@ class REPLEnv:
 
         def llm_query(prompt: str) -> str:
             """
-            Query a sub-LLM from within the REPL environment.
+            Query a sub-LLM from within the REPL environment (synchronous).
 
             Args:
                 prompt: The prompt to send to the LLM
@@ -231,6 +261,56 @@ class REPLEnv:
                 str: The LLM's response
             """
             return self.sub_rlm.completion(prompt)
+
+        async def llm_query_async(prompt: str) -> str:
+            """
+            Query a sub-LLM from within the REPL environment (async version).
+
+            This is an async version that can be awaited in async code.
+
+            Args:
+                prompt: The prompt to send to the LLM
+
+            Returns:
+                str: The LLM's response
+            """
+            # For now, run the sync version in an executor
+            # Future: implement true async LLM calls
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self.sub_rlm.completion, prompt)
+
+        def llm_query_batch(prompts: List[str]) -> List[str]:
+            """
+            Query multiple sub-LLMs in parallel (synchronous interface).
+
+            This function runs multiple LLM queries concurrently, which is much
+            faster than calling llm_query() in a loop.
+
+            Args:
+                prompts: List of prompts to send to the LLM
+
+            Returns:
+                List[str]: List of LLM responses in the same order
+
+            Example:
+                chunks = [context[i:i+1000] for i in range(0, len(context), 1000)]
+                prompts = [f"Summarize: {chunk}" for chunk in chunks]
+                summaries = llm_query_batch(prompts)
+            """
+            # Run async version and return results
+            return asyncio.run(self._batch_query_async(prompts))
+
+        async def llm_query_batch_async(prompts: List[str]) -> List[str]:
+            """
+            Query multiple sub-LLMs in parallel (async version).
+
+            Args:
+                prompts: List of prompts to send to the LLM
+
+            Returns:
+                List[str]: List of LLM responses in the same order
+            """
+            return await self._batch_query_async(prompts)
 
         def FINAL_VAR(variable_name: str) -> str:
             """
@@ -256,7 +336,13 @@ class REPLEnv:
 
         # Add functions to globals
         self.globals['llm_query'] = llm_query
+        self.globals['llm_query_async'] = llm_query_async
+        self.globals['llm_query_batch'] = llm_query_batch
+        self.globals['llm_query_batch_async'] = llm_query_batch_async
         self.globals['FINAL_VAR'] = FINAL_VAR
+
+        # Also add asyncio for async code execution
+        self.globals['asyncio'] = asyncio
 
     def load_context(
         self,
@@ -295,6 +381,29 @@ class REPLEnv:
             )
             self.code_execution(context_code)
 
+    async def _batch_query_async(self, prompts: List[str]) -> List[str]:
+        """
+        Internal async method to run multiple LLM queries in parallel.
+
+        Args:
+            prompts: List of prompts to process
+
+        Returns:
+            List of responses in the same order as prompts
+        """
+        # Create tasks for all prompts
+        tasks = []
+        loop = asyncio.get_event_loop()
+
+        for prompt in prompts:
+            # Run each completion in an executor to avoid blocking
+            task = loop.run_in_executor(None, self.sub_rlm.completion, prompt)
+            tasks.append(task)
+
+        # Wait for all tasks to complete
+        results = await asyncio.gather(*tasks)
+        return list(results)
+
     @contextmanager
     def _capture_output(self):
         """Context manager to capture stdout/stderr in thread-safe manner."""
@@ -323,9 +432,25 @@ class REPLEnv:
         finally:
             os.chdir(old_cwd)
 
+    def _detect_async_code(self, code: str) -> bool:
+        """
+        Detect if code contains async/await syntax.
+
+        Args:
+            code: Python code to check
+
+        Returns:
+            True if code appears to use async/await
+        """
+        # Simple heuristic: check for async def, await, or asyncio
+        async_keywords = ['async def', 'await ', 'asyncio.run', 'asyncio.gather']
+        return any(keyword in code for keyword in async_keywords)
+
     def code_execution(self, code: str) -> REPLResult:
         """
         Execute Python code in the REPL environment (Jupyter-style).
+
+        Supports both synchronous and asynchronous code execution.
 
         Args:
             code: Python code to execute
@@ -334,6 +459,13 @@ class REPLEnv:
             REPLResult: Execution results with stdout, stderr, locals, time
         """
         start_time = time.time()
+
+        # Check if code uses async/await
+        is_async = self._detect_async_code(code)
+
+        if is_async:
+            # Execute as async code
+            return self._code_execution_async(code, start_time)
 
         with self._capture_output() as (stdout_buffer, stderr_buffer):
             with self._temp_working_directory():
@@ -419,6 +551,78 @@ class REPLEnv:
                         # Update locals with new variables
                         for key, value in combined_namespace.items():
                             if key not in self.globals:
+                                self.locals[key] = value
+
+                    stdout_content = stdout_buffer.getvalue()
+                    stderr_content = stderr_buffer.getvalue()
+
+                except Exception as e:
+                    stderr_content = stderr_buffer.getvalue() + str(e)
+                    stdout_content = stdout_buffer.getvalue()
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+
+        # Store outputs in locals for access
+        self.locals['_stdout'] = stdout_content
+        self.locals['_stderr'] = stderr_content
+
+        return REPLResult(
+            stdout=stdout_content,
+            stderr=stderr_content,
+            locals=self.locals.copy(),
+            execution_time=execution_time
+        )
+
+    def _code_execution_async(self, code: str, start_time: float) -> REPLResult:
+        """
+        Execute async Python code in the REPL environment.
+
+        Args:
+            code: Async Python code to execute
+            start_time: Start time for execution tracking
+
+        Returns:
+            REPLResult: Execution results
+        """
+        with self._capture_output() as (stdout_buffer, stderr_buffer):
+            with self._temp_working_directory():
+                try:
+                    # Split code into imports and other code
+                    lines = code.split('\n')
+                    import_lines = []
+                    other_lines = []
+
+                    for line in lines:
+                        if line.strip().startswith(('import ', 'from ')):
+                            import_lines.append(line)
+                        else:
+                            other_lines.append(line)
+
+                    # Execute imports in globals first
+                    if import_lines:
+                        import_code = '\n'.join(import_lines)
+                        exec(import_code, self.globals, self.globals)
+
+                    # Execute remaining code
+                    if other_lines:
+                        other_code = '\n'.join(other_lines)
+                        combined_namespace = {**self.globals, **self.locals}
+
+                        # Wrap code in async function and run
+                        async_wrapper = f"""
+async def __async_exec():
+{chr(10).join('    ' + line for line in other_lines)}
+"""
+                        # Execute the wrapper to define the function
+                        exec(async_wrapper, combined_namespace, combined_namespace)
+
+                        # Run the async function
+                        asyncio.run(combined_namespace['__async_exec']())
+
+                        # Update locals with new variables
+                        for key, value in combined_namespace.items():
+                            if key not in self.globals and key != '__async_exec':
                                 self.locals[key] = value
 
                     stdout_content = stdout_buffer.getvalue()
