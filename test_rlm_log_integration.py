@@ -68,7 +68,7 @@ def test_rlm_log_analyzer_integration():
         return False
 
     try:
-        from rlm import RLMLogAnalyzer
+        from log_analysis import RLMLogAnalyzer
 
         print("Setting up RLMLogAnalyzer...")
         analyzer = RLMLogAnalyzer(
@@ -156,7 +156,7 @@ def demonstrate_repl_tools():
     print("="*80)
     print()
 
-    from rlm.repl_log import LogAnalysisREPLEnv
+    from log_analysis.repl_log import LogAnalysisREPLEnv
 
     # Create a REPL environment to show what's injected
     env = LogAnalysisREPLEnv(

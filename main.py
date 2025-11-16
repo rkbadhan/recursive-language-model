@@ -271,9 +271,9 @@ def example_5_log_analysis():
     print("For full AI-powered analysis, run: python demo_log_analysis.py")
     print()
 
-    # Import log parsing modules
-    from rlm.log_parsers import parse_log, detect_log_format
-    from rlm.log_correlator import correlate_logs, detect_all_patterns
+    # Import log parsing modules (from log_analysis use case)
+    from log_analysis.log_parsers import parse_log, detect_log_format
+    from log_analysis.log_correlator import correlate_logs, detect_all_patterns
 
     # Sample logs (simplified for quick demo)
     jstack_log = '''

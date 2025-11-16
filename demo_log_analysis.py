@@ -126,7 +126,7 @@ def main():
         return 1
 
     try:
-        from rlm import RLMLogAnalyzer
+        from log_analysis import RLMLogAnalyzer
 
         print("="*80)
         print("INITIALIZING RLM LOG ANALYZER")

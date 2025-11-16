@@ -11,11 +11,11 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import unittest
-from rlm.log_parsers import (
+from log_analysis.log_parsers import (
     parse_jstack, parse_strace, parse_gc_log, parse_pstack,
     parse_syslog, parse_json_logs, detect_log_format, parse_log
 )
-from rlm.log_correlator import (
+from log_analysis.log_correlator import (
     correlate_logs, detect_all_patterns,
     extract_events_from_jstack, extract_events_from_strace,
     extract_events_from_gc, detect_deadlock_pattern,

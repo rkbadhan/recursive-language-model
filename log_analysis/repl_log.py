@@ -7,12 +7,12 @@ log parsing functions and correlation utilities into the environment.
 
 from typing import Optional, Dict, Any
 from rlm.repl import REPLEnv
-from rlm.log_parsers import (
+from .log_parsers import (
     parse_jstack, parse_strace, parse_gc_log, parse_pstack,
     parse_syslog, parse_json_logs, parse_log, detect_log_format,
     extract_timestamp, normalize_timestamp
 )
-from rlm.log_correlator import (
+from .log_correlator import (
     correlate_logs, find_correlated_events, detect_all_patterns,
     generate_correlation_summary, Timeline, LogEvent,
     extract_events_from_parsed_log

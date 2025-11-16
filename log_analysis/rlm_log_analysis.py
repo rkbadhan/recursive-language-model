@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Any, Union
 import os
 
 from rlm import RLM
-from rlm.repl_log import LogAnalysisREPLEnv
+from .repl_log import LogAnalysisREPLEnv
 from rlm.utils.llm import OpenAIClient
 from rlm.utils.prompts import (
     DEFAULT_QUERY,
