@@ -65,16 +65,68 @@ Nov 15 14:30:25 hostname application[12346]: CRITICAL: Application freeze detect
 }
 
 QUERY = """
-Analyze these system logs from an application freeze incident at 14:30.
+You are analyzing system logs from an application freeze incident at 14:30.
 
-Your task:
-1. Parse each log format (jstack, GC, strace, syslog) - write code to extract key events
-2. Build a timeline correlating events across all logs
-3. Identify the root cause of the application freeze
-4. Provide specific evidence from the logs
-5. Recommend fixes
+# Context Structure
+The context contains 4 log files from the incident:
+- 'jstack_14:30': Java thread dump (jstack format)
+- 'gc_log': JVM garbage collection log
+- 'strace': System call trace
+- 'syslog': System log messages
 
-Write Python code to analyze the logs programmatically.
+# Log Format Guide
+
+**jstack format:**
+- Thread dumps showing thread states (BLOCKED, WAITING, RUNNABLE)
+- Lock information: "waiting to lock <0xHEX>" or "locked <0xHEX>"
+- Stack traces with line numbers
+- Deadlock detection: "Found one Java-level deadlock:"
+
+**GC log format:**
+- Format: [timestamp][gc] GC(N) Pause Type (Reason) BeforeM->AfterM(TotalM) DurationMs
+- Watch for: Long pause times (>1000ms), Full GC events, Allocation failures
+- Correlate GC pauses with app behavior
+
+**strace format:**
+- Format: timestamp syscall(args) = return_value [errno]
+- Key syscalls: read(), write(), open(), poll(), connect()
+- Look for: Timeouts (ETIMEDOUT), slow syscalls (>1s between timestamps)
+
+**syslog format:**
+- Format: Month Day Time hostname process[pid]: LEVEL: message
+- Levels: INFO, WARNING, ERROR, CRITICAL
+- Look for: OOM killer, connection errors, timeouts
+
+# Analysis Strategy
+
+1. **Parse each log** - Write Python code using regex/string parsing to extract:
+   - Timestamps (normalize to comparable format)
+   - Key events (deadlocks, errors, slow operations)
+   - Thread/process states
+
+2. **Build timeline** - Correlate events by timestamp:
+   - What happened first?
+   - What cascade of events followed?
+   - Time gaps between related events
+
+3. **Pattern detection** - Look for:
+   - Deadlocks: Circular lock dependencies in jstack
+   - Memory pressure: Long GC pauses, OOM messages
+   - I/O blocking: Slow syscalls, timeouts in strace
+   - Resource exhaustion: Connection pool errors
+
+4. **Root cause analysis** - Connect the dots:
+   - What was the triggering event?
+   - How did it propagate?
+   - Why did the system freeze?
+
+5. **Evidence-based answer** - Provide:
+   - Specific log excerpts as evidence
+   - Timeline of events
+   - Root cause explanation
+   - Actionable recommendations
+
+Write Python code to systematically analyze the logs and determine the root cause.
 """
 
 
