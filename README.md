@@ -449,6 +449,40 @@ Tests include:
 - **RL Training**: Learn optimal exploration strategies
 - **Visualization**: Interactive trajectory viewer
 
+## 📊 Benchmarks
+
+This repository includes implementations of two key long-context benchmarks from the RLM paper:
+
+### OOLONG Benchmark
+- **Task:** Count/classify entries matching criteria in 5000+ entry contexts
+- **Context Size:** ~128k-263k tokens
+- **Key Result:** RLM(GPT-4o-mini) outperforms GPT-4o by +33% at similar cost
+
+### BrowseComp-Plus Benchmark
+- **Task:** Multi-hop reasoning over 10-1000 documents
+- **Context Size:** Up to 10M+ tokens
+- **Key Result:** RLM(GPT-4o) maintains 100% accuracy at 1000 docs while baselines degrade
+
+### Running Benchmarks
+
+```bash
+# Quick test with RLM(GPT-4o-mini)
+python benchmarks/run_benchmarks.py --run-rlm --num-queries 5
+
+# Compare multiple approaches
+python benchmarks/run_benchmarks.py \
+    --benchmark both \
+    --run-rlm-gpt4 \
+    --run-direct-gpt \
+    --run-react \
+    --save-results
+
+# Analyze results
+python benchmarks/analyze_results.py benchmarks/results/oolong_*.json
+```
+
+See `benchmarks/README.md` for detailed documentation.
+
 ## 📖 Research Paper
 
 **Recursive Language Models**
