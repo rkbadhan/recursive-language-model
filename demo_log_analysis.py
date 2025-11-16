@@ -1,24 +1,25 @@
 """
-Demo: System Log Analysis with Cross-Log Correlation
+Demo: RLM-Powered System Log Analysis
 
-This demo shows how to use the RLM log analysis system to:
-1. Parse different log formats (jstack, strace, GC, syslog)
-2. Correlate events across multiple logs
-3. Detect known issue patterns
-4. Generate analysis summaries
+This demo shows how RLM automatically analyzes logs by:
+1. Auto-detecting log formats (jstack, strace, GC, syslog)
+2. Parsing logs into structured data
+3. Correlating events across multiple logs
+4. Detecting issue patterns (deadlocks, memory leaks, etc.)
+5. Providing root cause analysis
 
-Note: This demo can run in two modes:
-- Parser-only mode (no API key needed) - shows parsing and correlation
-- Full RLM mode (requires OpenAI API key) - includes AI analysis
+The key: You just provide logs and ask a question.
+RLM handles everything else automatically via LLM-generated code.
+
+Requires: OPENAI_API_KEY environment variable
 """
 
 import sys
 import os
 
-# Realistic multi-log scenario: Application freeze at 14:30
+# Realistic scenario: Application freeze at 14:30
 # ============================================================================
 
-# JStack dump taken during the freeze
 JSTACK_DUMP_1430 = """2024-11-15 14:30:15
 Full thread dump OpenJDK 64-Bit Server VM (11.0.16+8 mixed mode):
 
@@ -51,7 +52,6 @@ Found one Java-level deadlock:
   which is held by "DB-Cleanup-Thread"
 """
 
-# Strace output showing I/O blocking around the same time
 STRACE_LOG_1430 = """14:30:10.123456 accept(3, {sa_family=AF_INET, sin_port=htons(54321)}, [16]) = 5 <0.000123>
 14:30:10.234567 read(5, "GET /api/users/123 HTTP/1.1\\r\\n", 8192) = 28 <0.000056>
 14:30:10.345678 open("/var/log/app.log", O_WRONLY|O_APPEND) = 6 <0.000034>
@@ -65,7 +65,6 @@ STRACE_LOG_1430 = """14:30:10.123456 accept(3, {sa_family=AF_INET, sin_port=hton
 14:30:26.123456 write(2, "Application hang detected\\n", 27) = 27 <0.000021>
 """
 
-# GC log showing memory pressure leading up to the freeze
 GC_LOG_1430 = """[2024-11-15T14:25:00.000+0000][gc] GC(95) Pause Young (Normal) 45M->8M(100M) 156.234ms
 [2024-11-15T14:26:00.000+0000][gc] GC(96) Pause Young (Normal) 48M->9M(100M) 189.456ms
 [2024-11-15T14:27:00.000+0000][gc] GC(97) Pause Young (Allocation Failure) 52M->12M(100M) 234.567ms
@@ -77,7 +76,6 @@ GC_LOG_1430 = """[2024-11-15T14:25:00.000+0000][gc] GC(95) Pause Young (Normal) 
 [2024-11-15T14:31:00.000+0000][gc] GC(103) Pause Full (Allocation Failure) 98M->40M(100M) 12345.678ms
 """
 
-# Syslog showing system-level issues
 SYSLOG_1430 = """Nov 15 14:25:00 appserver kernel: TCP: request_sock_TCP: Possible SYN flooding on port 8080
 Nov 15 14:28:00 appserver systemd[1]: application.service: Main process exited, code=killed, status=9/KILL
 Nov 15 14:28:01 appserver systemd[1]: application.service: Failed with result 'signal'.
@@ -92,143 +90,57 @@ Nov 15 14:30:20 appserver application[23456]: CRITICAL: Application unresponsive
 """
 
 
-def demo_parser_only():
-    """Demo showing parsing and correlation without RLM (no API key needed)."""
-    print("="*80)
-    print("DEMO 1: Log Parsing and Correlation (No API Key Required)")
-    print("="*80)
+def main():
+    """Run RLM log analysis demo."""
+    print("\n" + "╔" + "="*78 + "╗")
+    print("║" + " "*20 + "RLM LOG ANALYSIS DEMO" + " "*37 + "║")
+    print("╚" + "="*78 + "╝")
     print()
-    print("Scenario: Application froze at 14:30. We have logs from multiple sources.")
+    print("Scenario: Application froze at 14:30")
+    print("Question: Why did it freeze? What's the root cause?")
     print()
-
-    from rlm.log_parsers import parse_log, detect_log_format
-    from rlm.log_correlator import correlate_logs, detect_all_patterns, generate_correlation_summary
-
-    # Step 1: Parse each log
-    print("Step 1: Parsing logs...")
-    print("-" * 40)
-
-    jstack_format = detect_log_format(JSTACK_DUMP_1430)
-    print(f"✓ jstack: detected as '{jstack_format}'")
-    jstack_parsed = parse_log(JSTACK_DUMP_1430, jstack_format)
-    print(f"  - Threads: {jstack_parsed['total_threads']}")
-    print(f"  - Deadlock: {jstack_parsed['has_deadlock']}")
-    print(f"  - Blocked threads: {len(jstack_parsed['blocked_threads'])}")
-
-    strace_format = detect_log_format(STRACE_LOG_1430)
-    print(f"✓ strace: detected as '{strace_format}'")
-    strace_parsed = parse_log(STRACE_LOG_1430, strace_format)
-    print(f"  - Total syscalls: {strace_parsed['total_syscalls']}")
-    print(f"  - Slow calls (>1s): {len(strace_parsed['slow_calls'])}")
-    print(f"  - Errors: {len(strace_parsed['errors'])}")
-
-    gc_format = detect_log_format(GC_LOG_1430)
-    print(f"✓ GC log: detected as '{gc_format}'")
-    gc_parsed = parse_log(GC_LOG_1430, gc_format)
-    print(f"  - Collections: {gc_parsed['total_collections']}")
-    print(f"  - Max pause: {gc_parsed['max_pause_ms']:.1f}ms")
-    print(f"  - Long pauses (>1s): {len(gc_parsed['long_pauses'])}")
-
-    syslog_format = detect_log_format(SYSLOG_1430)
-    print(f"✓ syslog: detected as '{syslog_format}'")
-    syslog_parsed = parse_log(SYSLOG_1430, syslog_format)
-    print(f"  - Entries: {syslog_parsed['total_entries']}")
-    print(f"  - Errors: {syslog_parsed['error_count']}")
-    print(f"  - Warnings: {syslog_parsed['warning_count']}")
-
-    # Step 2: Correlate logs
-    print()
-    print("Step 2: Correlating events across logs...")
-    print("-" * 40)
-
-    parsed_logs = {
-        'jstack_14:30': jstack_parsed,
-        'strace': strace_parsed,
-        'gc': gc_parsed,
-        'syslog': syslog_parsed
-    }
-
-    timeline = correlate_logs(parsed_logs)
-    print(f"✓ Timeline created:")
-    print(f"  - Total events: {len(timeline.events)}")
-    print(f"  - Sources: {list(timeline.by_source.keys())}")
-    for source, events in timeline.by_source.items():
-        print(f"  - {source}: {len(events)} events")
-
-    # Step 3: Detect patterns
-    print()
-    print("Step 3: Detecting issue patterns...")
-    print("-" * 40)
-
-    patterns = detect_all_patterns(timeline)
-    print(f"✓ Patterns detected: {len(patterns)}")
+    print("We have 4 log files:")
+    print("  • jstack (thread dump)")
+    print("  • strace (system call trace)")
+    print("  • gc.log (garbage collection)")
+    print("  • syslog (system messages)")
     print()
 
-    for i, pattern in enumerate(patterns, 1):
-        print(f"{i}. [{pattern['severity']}] {pattern['pattern'].upper()}")
-        print(f"   {pattern['description']}")
+    # Check for API key
+    if not os.getenv("OPENAI_API_KEY"):
+        print("❌ ERROR: OPENAI_API_KEY not set")
         print()
-
-    # Step 4: Generate summary
-    print("Step 4: Generating correlation summary...")
-    print("-" * 40)
-    print()
-
-    summary = generate_correlation_summary(timeline, patterns)
-    print(summary)
-
-    # Step 5: Manual root cause analysis
-    print()
-    print("Step 5: Root Cause Analysis (Manual)")
-    print("="*80)
-    print()
-    print("Based on the correlated logs, here's what happened:")
-    print()
-    print("1. MEMORY PRESSURE (14:25-14:30)")
-    print("   - GC pause times increased from 156ms to 12,345ms (78x worse)")
-    print("   - Heap usage grew from 45M to 98M")
-    print("   - Indicates memory leak or excessive allocation")
-    print()
-    print("2. OOM KILL (14:30:00)")
-    print("   - Kernel killed Java process due to memory exhaustion")
-    print("   - Confirmed in syslog: 'Out of memory: Kill process 23457 (java)'")
-    print()
-    print("3. DATABASE TIMEOUT (14:30:14)")
-    print("   - Application restarted but database connection timed out")
-    print("   - Strace shows 2.5s timeout on database read")
-    print()
-    print("4. DEADLOCK (14:30:15)")
-    print("   - Connection pool deadlock detected in jstack")
-    print("   - Workers waiting on locks held by cleanup thread")
-    print("   - Application completely frozen")
-    print()
-    print("ROOT CAUSE:")
-    print("  Memory leak → OOM → Restart → Connection pool exhaustion → Deadlock")
-    print()
-    print("RECOMMENDATION:")
-    print("  1. Fix memory leak (heap dump analysis needed)")
-    print("  2. Fix connection pool lock ordering bug")
-    print("  3. Add connection timeout and retry logic")
-    print("  4. Increase heap size as temporary mitigation")
-    print()
-
-
-def demo_with_rlm():
-    """Demo using RLM for AI-powered analysis (requires API key)."""
-    print("="*80)
-    print("DEMO 2: AI-Powered Log Analysis with RLM (Requires OpenAI API Key)")
-    print("="*80)
-    print()
+        print("This demo requires OpenAI API to show RLM in action.")
+        print("Set your API key:")
+        print("  export OPENAI_API_KEY='sk-...'")
+        print()
+        print("What RLM will do:")
+        print("  1. LLM peeks at logs to understand structure")
+        print("  2. LLM writes code: parse_log(context['jstack'])")
+        print("  3. LLM writes code: correlate_logs(...)")
+        print("  4. LLM writes code: detect_all_patterns(...)")
+        print("  5. LLM provides root cause analysis")
+        print()
+        print("The LLM autonomously uses the log analysis tools!")
+        print()
+        return 1
 
     try:
         from rlm import RLMLogAnalyzer
 
+        print("="*80)
+        print("INITIALIZING RLM LOG ANALYZER")
+        print("="*80)
+        print()
+
         analyzer = RLMLogAnalyzer(
             model="gpt-4o-mini",
-            enable_logging=True,
-            track_costs=True
+            enable_logging=True,  # Show execution steps
+            track_costs=True,
+            max_iterations=20
         )
 
+        # Provide all logs to RLM
         logs = {
             'jstack_14:30': JSTACK_DUMP_1430,
             'strace': STRACE_LOG_1430,
@@ -249,14 +161,20 @@ def demo_with_rlm():
         Output should be structured and comprehensive.
         """
 
-        print("Sending logs to RLM for analysis...")
-        print("(This may take 30-60 seconds)")
+        print("Sending logs to RLM...")
+        print("(Watch the LLM autonomously explore the logs)")
         print()
 
+        # RLM automatically:
+        # - Detects log formats
+        # - Parses logs
+        # - Correlates events
+        # - Detects patterns
+        # - Provides root cause analysis
         result = analyzer.completion(context=logs, query=query)
 
         print("\n" + "="*80)
-        print("RLM ANALYSIS RESULT")
+        print("RLM ANALYSIS COMPLETE")
         print("="*80)
         print(result)
 
@@ -267,46 +185,37 @@ def demo_with_rlm():
             print("COST SUMMARY")
             print("="*80)
             print(f"Total API calls: {costs.get('total_calls', 0)}")
-            print(f"Total tokens: {costs.get('total_tokens', 0)}")
+            print(f"Total tokens: {costs.get('total_tokens', 0):,}")
             print(f"Estimated cost: ${costs.get('estimated_cost_usd', 0):.4f}")
 
-    except ImportError:
-        print("RLMLogAnalyzer requires the 'openai' package.")
-        print("Install it with: pip install openai")
+        print("\n" + "="*80)
+        print("Demo complete! ✓")
+        print("="*80)
+        print()
+        print("What just happened:")
+        print("  • RLM received 4 raw log files")
+        print("  • LLM autonomously explored them by writing Python code")
+        print("  • LLM used parse_log(), correlate_logs(), detect_all_patterns()")
+        print("  • LLM iteratively built understanding")
+        print("  • LLM provided comprehensive root cause analysis")
+        print()
+        print("You just asked a question. RLM did everything else!")
+        print()
+
+        return 0
+
+    except ImportError as e:
+        print(f"❌ Error: {e}")
+        print()
+        print("Make sure 'openai' package is installed:")
+        print("  pip install openai")
+        return 1
     except Exception as e:
-        print(f"Error: {e}")
-        print("\nMake sure you have OPENAI_API_KEY set in your environment.")
-
-
-def main():
-    """Run demos."""
-    print()
-    print("╔" + "="*78 + "╗")
-    print("║" + " "*25 + "RLM LOG ANALYSIS DEMO" + " "*32 + "║")
-    print("╚" + "="*78 + "╝")
-    print()
-
-    # Always run parser demo (no API key needed)
-    demo_parser_only()
-
-    # Ask if user wants to run RLM demo
-    print("\n" + "="*80)
-    print()
-    response = input("Run AI-powered analysis demo? (requires OpenAI API key) [y/N]: ")
-
-    if response.lower() in ('y', 'yes'):
-        print()
-        demo_with_rlm()
-    else:
-        print()
-        print("Skipping AI demo. You can run it later by setting OPENAI_API_KEY")
-        print("and running: python demo_log_analysis.py")
-
-    print()
-    print("="*80)
-    print("Demo complete! ✓")
-    print("="*80)
+        print(f"❌ Error during RLM execution: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
