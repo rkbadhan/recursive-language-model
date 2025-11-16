@@ -249,98 +249,6 @@ def example_4_simple_test():
     print("="*80)
 
 
-def example_5_log_analysis():
-    """
-    Example 5: System Log Analysis and Correlation
-
-    Demonstrate log parsing and correlation capabilities.
-    This example runs WITHOUT requiring an API key - it shows
-    the parsing and correlation features standalone.
-    """
-    print("\n" + "="*80)
-    print("EXAMPLE 5: System Log Analysis (No API Key Required)")
-    print("="*80)
-    print()
-    print("This example demonstrates:")
-    print("  - Parsing different log formats (jstack, strace, GC, syslog)")
-    print("  - Correlating events across multiple logs")
-    print("  - Detecting known issue patterns")
-    print("  - Building timelines and root cause analysis")
-    print()
-    print("Note: This runs the parser demo which doesn't need OpenAI API.")
-    print("For full AI-powered analysis, run: python demo_log_analysis.py")
-    print()
-
-    # Import log parsing modules (from log_analysis use case)
-    from log_analysis.log_parsers import parse_log, detect_log_format
-    from log_analysis.log_correlator import correlate_logs, detect_all_patterns
-
-    # Sample logs (simplified for quick demo)
-    jstack_log = '''
-"Worker-1" #12 prio=5 os_prio=0 tid=0x00007f8a4c000800 nid=0x1a2b waiting on condition
-   java.lang.Thread.State: BLOCKED (on object monitor)
-    at com.example.Service.process(Service.java:45)
-    - waiting to lock <0x00000000e1234560> (a java.lang.Object)
-
-Found one Java-level deadlock:
-"Worker-1": waiting to lock object 0x00000000e1234560
-'''
-
-    gc_log = '''
-[2024-11-15T14:30:15.456+0000][gc] GC(101) Pause Young (Normal) 55M->15M(100M) 5234.567ms
-[2024-11-15T14:31:00.000+0000][gc] GC(103) Pause Full (Ergonomics) 90M->30M(100M) 8000.123ms
-'''
-
-    syslog_log = '''
-Nov 15 14:30:15 hostname application[12346]: ERROR: Database connection failed
-Nov 15 14:30:16 hostname application[12346]: WARNING: Retrying connection
-'''
-
-    print("Step 1: Parsing logs...")
-    print("-" * 40)
-
-    # Parse each log
-    jstack_parsed = parse_log(jstack_log)
-    print(f"✓ jstack: format={jstack_parsed['format']}, deadlock={jstack_parsed.get('has_deadlock', False)}")
-
-    gc_parsed = parse_log(gc_log)
-    print(f"✓ GC: format={gc_parsed['format']}, collections={gc_parsed.get('total_collections', 0)}")
-
-    syslog_parsed = parse_log(syslog_log)
-    print(f"✓ syslog: format={syslog_parsed['format']}, errors={syslog_parsed.get('error_count', 0)}")
-
-    print()
-    print("Step 2: Correlating logs...")
-    print("-" * 40)
-
-    # Correlate
-    parsed_logs = {
-        'jstack': jstack_parsed,
-        'gc': gc_parsed,
-        'syslog': syslog_parsed
-    }
-
-    timeline = correlate_logs(parsed_logs)
-    print(f"✓ Timeline created with {len(timeline.events)} events from {len(timeline.by_source)} sources")
-
-    print()
-    print("Step 3: Detecting patterns...")
-    print("-" * 40)
-
-    patterns = detect_all_patterns(timeline)
-    if patterns:
-        for i, p in enumerate(patterns, 1):
-            print(f"{i}. [{p['severity']}] {p['pattern'].upper()}: {p['description']}")
-    else:
-        print("No critical patterns detected in this sample.")
-
-    print()
-    print("="*80)
-    print("Demo complete! For a comprehensive example with real logs, run:")
-    print("  python demo_log_analysis.py")
-    print("="*80)
-
-
 def main():
     """Run examples based on user selection."""
     print("\n" + "="*80)
@@ -351,17 +259,17 @@ def main():
     print("  2. Multi-Document Reasoning - Moderate")
     print("  3. Counting and Aggregation - Moderate")
     print("  4. Simple Test - Quick")
-    print("  5. System Log Analysis - Quick (parser demo, no API needed)")
-    print("  6. Run all examples (WARNING: Expensive!)")
+    print("  5. Run all examples (WARNING: Expensive!)")
+    print()
+    print("For log analysis demo, run: python demo_log_analysis.py")
 
-    choice = input("\nEnter your choice (1-6): ").strip()
+    choice = input("\nEnter your choice (1-5): ").strip()
 
-    # Check for API key for examples that need it (not example 5)
-    if choice != "5" and not os.getenv("OPENAI_API_KEY"):
+    # Check for API key
+    if not os.getenv("OPENAI_API_KEY"):
         print("\nERROR: OPENAI_API_KEY environment variable not set!")
         print("Please set it in a .env file or export it:")
         print("  export OPENAI_API_KEY='your-api-key'")
-        print("\nNote: Example 5 (Log Analysis) doesn't require an API key.")
         return
 
     if choice == "1":
@@ -373,8 +281,6 @@ def main():
     elif choice == "4":
         example_4_simple_test()
     elif choice == "5":
-        example_5_log_analysis()
-    elif choice == "6":
         confirm = input(
             "Running all examples will be expensive. Continue? (yes/no): "
         ).strip().lower()
@@ -382,7 +288,6 @@ def main():
             example_4_simple_test()
             example_2_multi_document()
             example_3_counting_aggregation()
-            example_5_log_analysis()  # Log analysis is cheap
             # Skip example 1 by default as it's very intensive
             print("\nSkipping Example 1 (Needle-in-Haystack) - too intensive")
             print("Run it separately if needed.")
