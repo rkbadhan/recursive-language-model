@@ -44,6 +44,7 @@ class RLM_REPL(RLM):
         max_depth: int = 1,
         enable_logging: bool = False,
         track_costs: bool = False,
+        prompt_type: Optional[str] = None,
     ):
         """
         Initialize the RLM with REPL environment.
@@ -57,6 +58,7 @@ class RLM_REPL(RLM):
             max_depth: Maximum recursion depth allowed (1 = only sub-LLMs, 2+ = nested RLMs)
             enable_logging: Whether to enable colorful logging
             track_costs: Whether to track API costs
+            prompt_type: Type of system prompt ("default" or "log_analysis")
         """
         # API configuration
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -76,6 +78,7 @@ class RLM_REPL(RLM):
         self._max_iterations = max_iterations
         self.track_costs = track_costs
         self.enable_logging = enable_logging
+        self.prompt_type = prompt_type
 
         # State
         self.repl_env: Optional[REPLEnv] = None
@@ -108,7 +111,7 @@ class RLM_REPL(RLM):
         self.logger.log_query_start(query)
 
         # Initialize conversation with system prompt
-        self.messages = build_system_prompt()
+        self.messages = build_system_prompt(prompt_type=self.prompt_type)
         self.logger.log_initial_messages(self.messages)
 
         # Convert context for REPL

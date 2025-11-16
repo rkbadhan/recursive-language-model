@@ -251,13 +251,6 @@ def example_4_simple_test():
 
 def main():
     """Run examples based on user selection."""
-    # Check for API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("ERROR: OPENAI_API_KEY environment variable not set!")
-        print("Please set it in a .env file or export it:")
-        print("  export OPENAI_API_KEY='your-api-key'")
-        return
-
     print("\n" + "="*80)
     print("RECURSIVE LANGUAGE MODEL (RLM) - EXAMPLES")
     print("="*80)
@@ -267,8 +260,17 @@ def main():
     print("  3. Counting and Aggregation - Moderate")
     print("  4. Simple Test - Quick")
     print("  5. Run all examples (WARNING: Expensive!)")
+    print()
+    print("For log analysis demo, run: python demo_log_analysis.py")
 
     choice = input("\nEnter your choice (1-5): ").strip()
+
+    # Check for API key
+    if not os.getenv("OPENAI_API_KEY"):
+        print("\nERROR: OPENAI_API_KEY environment variable not set!")
+        print("Please set it in a .env file or export it:")
+        print("  export OPENAI_API_KEY='your-api-key'")
+        return
 
     if choice == "1":
         example_1_needle_in_haystack()
