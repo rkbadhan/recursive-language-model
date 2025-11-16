@@ -8,7 +8,11 @@ This module demonstrates and tests:
 """
 
 import os
+import sys
 import time
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from rlm.rlm_repl import RLM_REPL
 
 

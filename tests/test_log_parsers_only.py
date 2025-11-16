@@ -7,8 +7,8 @@ Run this to test the core log analysis functionality without needing API keys.
 import sys
 import os
 
-# Add rlm to path
-sys.path.insert(0, os.path.dirname(__file__))
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import unittest
 from log_analysis.log_parsers import (

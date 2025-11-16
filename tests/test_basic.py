@@ -7,6 +7,9 @@ Run this to verify the implementation works correctly.
 import os
 import sys
 
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 
 def test_imports():
     """Test that all modules can be imported."""

@@ -13,6 +13,9 @@ NOTE: Requires OPENAI_API_KEY environment variable.
 import os
 import sys
 
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 # Sample logs for testing
 SAMPLE_JSTACK = '''
 "Worker-1" #12 prio=5 os_prio=0 tid=0x00007f8a4c000800 nid=0x1a2b waiting on condition
