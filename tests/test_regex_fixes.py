@@ -2,6 +2,12 @@
 Test script to verify regex fixes for code blocks and FINAL() patterns.
 """
 
+import os
+import sys
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 from rlm.utils.utils import find_code_blocks, find_final_answer
 
 

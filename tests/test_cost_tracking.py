@@ -7,6 +7,12 @@ This tests that:
 3. RLM_REPL aggregates all costs (root + REPL)
 """
 
+import os
+import sys
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 from rlm.repl import SubRLM, REPLEnv
 from rlm.utils.llm import OpenAIClient
 
