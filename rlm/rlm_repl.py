@@ -126,6 +126,7 @@ class RLM_REPL(RLM):
             max_depth=self.max_depth,
             enable_logging=self.enable_logging,
             parent_rlm_class=RLM_REPL if self.max_depth > 1 else None,
+            track_costs=self.track_costs,
         )
 
         return self.messages
@@ -214,11 +215,14 @@ class RLM_REPL(RLM):
         """
         Get cost summary for this RLM execution.
 
-        Returns:
-            Dictionary with cost information
+        Aggregates costs from:
+        - Root LLM calls
+        - Sub-RLM calls (via REPL)
+        - Async LLM calls
+        - Nested recursive calls (if depth > 1)
 
-        Raises:
-            NotImplementedError: If cost tracking is not enabled
+        Returns:
+            Dictionary with aggregated cost information and breakdown by depth
         """
         if not self.track_costs:
             return {
@@ -226,7 +230,43 @@ class RLM_REPL(RLM):
                 "note": "Set track_costs=True when initializing RLM_REPL"
             }
 
-        return self.llm.get_cost_summary()
+        # Get root LLM costs
+        root_costs = self.llm.get_cost_summary()
+
+        # Get REPL sub-call costs if REPL exists
+        repl_costs = {}
+        if self.repl_env is not None:
+            repl_costs = self.repl_env.get_repl_cost_summary()
+
+        # Aggregate totals
+        total_calls = root_costs.get('total_calls', 0) + repl_costs.get('total_calls', 0)
+        total_input_tokens = root_costs.get('input_tokens', 0) + repl_costs.get('input_tokens', 0)
+        total_output_tokens = root_costs.get('output_tokens', 0) + repl_costs.get('output_tokens', 0)
+        root_cost = root_costs.get('estimated_cost_usd', 0.0)
+        repl_cost = repl_costs.get('estimated_cost_usd', 0.0)
+
+        return {
+            "depth": self.depth,
+            "total_calls": total_calls,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens,
+            "estimated_cost_usd": round(root_cost + repl_cost, 4),
+            "breakdown_by_component": {
+                "root_llm": {
+                    "calls": root_costs.get('total_calls', 0),
+                    "cost_usd": round(root_cost, 4),
+                    "model": self.model,
+                },
+                "sub_rlm_calls": {
+                    "calls": repl_costs.get('total_calls', 0),
+                    "cost_usd": round(repl_cost, 4),
+                    "model": self.recursive_model,
+                    "sync_calls": repl_costs.get('breakdown', {}).get('sync_calls', 0),
+                    "async_calls": repl_costs.get('breakdown', {}).get('async_calls', 0),
+                },
+            },
+        }
 
     def reset(self) -> None:
         """
