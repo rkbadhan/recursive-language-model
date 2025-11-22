@@ -45,6 +45,7 @@ class RLM_REPL(RLM):
         enable_logging: bool = False,
         track_costs: bool = False,
         prompt_type: Optional[str] = None,
+        max_messages: int = 15,  # Keep last N messages (plus system prompt)
     ):
         """
         Initialize the RLM with REPL environment.
@@ -59,6 +60,7 @@ class RLM_REPL(RLM):
             enable_logging: Whether to enable colorful logging
             track_costs: Whether to track API costs
             prompt_type: Type of system prompt ("default" or "log_analysis")
+            max_messages: Maximum messages to keep (sliding window, excluding system prompt)
         """
         # API configuration
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -76,6 +78,7 @@ class RLM_REPL(RLM):
         self.depth = depth
         self.max_depth = max_depth
         self._max_iterations = max_iterations
+        self._max_messages = max_messages  # Sliding window size
         self.track_costs = track_costs
         self.enable_logging = enable_logging
         self.prompt_type = prompt_type
@@ -130,6 +133,33 @@ class RLM_REPL(RLM):
 
         return self.messages
 
+    def _trim_message_history(self) -> None:
+        """
+        Trim message history using sliding window to prevent unbounded growth.
+
+        Strategy (like Claude Code):
+        - Always keep system prompt (messages[0])
+        - Keep last N messages (recent conversation)
+        - Drop middle messages when history exceeds limit
+
+        This prevents quadratic token cost growth as iterations increase.
+        Without this, 20 iterations could send 100+ messages per call!
+        """
+        if len(self.messages) <= self._max_messages + 1:  # +1 for system prompt
+            return
+
+        # Keep system prompt + last N messages
+        system_prompt = [self.messages[0]]
+        recent_messages = self.messages[-(self._max_messages):]
+
+        self.messages = system_prompt + recent_messages
+
+        if self.enable_logging:
+            self.logger.log_tool_execution(
+                "MESSAGE_TRIMMING",
+                f"Trimmed history to {len(self.messages)} messages (system + last {self._max_messages})"
+            )
+
     def completion(
         self,
         context: Union[List[str], str, Dict, List[Dict[str, str]]],
@@ -157,6 +187,9 @@ class RLM_REPL(RLM):
 
         # Main iterative loop
         for iteration in range(self._max_iterations):
+
+            # Trim message history to prevent unbounded growth
+            self._trim_message_history()
 
             # Query root LM for next action
             prompt = self.messages + [next_action_prompt(query, iteration)]
