@@ -94,7 +94,7 @@ def test_utils():
     try:
         from rlm.utils import utils
 
-        # Test find_code_blocks
+        # Test find_code_blocks - Standard case
         text_with_code = """
 Some text
 ```repl
@@ -108,12 +108,25 @@ More text
         assert len(blocks) == 1
         assert "x = 42" in blocks[0]
 
-        # Test find_final_answer
+        # Test find_code_blocks - No trailing newline (edge case fix)
+        text_no_newline = "```repl\nx = 5```"
+        blocks_no_newline = utils.find_code_blocks(text_no_newline)
+        assert blocks_no_newline is not None
+        assert "x = 5" in blocks_no_newline[0]
+
+        # Test find_final_answer - Simple case
         text_with_final = "The answer is FINAL(42)"
         final = utils.find_final_answer(text_with_final)
         assert final is not None
         assert final[0] == 'FINAL'
         assert '42' in final[1]
+
+        # Test FINAL with nested parentheses (edge case fix)
+        text_nested = "FINAL(calculate(5 + 3))"
+        final_nested = utils.find_final_answer(text_nested)
+        assert final_nested is not None
+        assert final_nested[0] == 'FINAL'
+        assert final_nested[1] == 'calculate(5 + 3)', f"Expected 'calculate(5 + 3)', got '{final_nested[1]}'"
 
         # Test FINAL_VAR
         text_with_var = "FINAL_VAR(my_answer)"
@@ -122,7 +135,7 @@ More text
         assert final_var[0] == 'FINAL_VAR'
         assert 'my_answer' in final_var[1]
 
-        print("✓ Utility functions work")
+        print("✓ Utility functions work (including edge case fixes)")
         return True
 
     except Exception as e:
@@ -218,6 +231,58 @@ def test_rlm_initialization():
         return False
 
 
+def test_cost_tracking():
+    """Test cost tracking features."""
+    print("\nTesting cost tracking...")
+
+    try:
+        # Set a dummy API key for testing initialization
+        os.environ["OPENAI_API_KEY"] = "sk-test-key-for-initialization-only"
+
+        from rlm.repl import SubRLM, REPLEnv
+        from rlm.utils.llm import OpenAIClient
+
+        # Test 1: OpenAIClient cost tracking
+        client = OpenAIClient(api_key="sk-test", model="gpt-4o-mini", track_costs=True)
+        assert client.track_costs == True, "OpenAIClient should enable cost tracking"
+        assert hasattr(client, 'total_input_tokens'), "Should have input token counter"
+        assert hasattr(client, 'total_output_tokens'), "Should have output token counter"
+
+        # Test 2: SubRLM cost tracking
+        sub_rlm = SubRLM(model="gpt-4o-mini", track_costs=True)
+        assert sub_rlm.client.track_costs == True, "SubRLM should enable cost tracking"
+        summary = sub_rlm.cost_summary()
+        assert 'total_calls' in summary, "SubRLM should return cost summary"
+
+        # Test 3: REPL cost tracking initialization
+        repl = REPLEnv(
+            recursive_model="gpt-4o-mini",
+            context_str="test",
+            track_costs=True
+        )
+        assert repl.track_costs == True, "REPL should have cost tracking enabled"
+        assert hasattr(repl, 'async_input_tokens'), "REPL should track async input tokens"
+        assert hasattr(repl, 'async_output_tokens'), "REPL should track async output tokens"
+        assert hasattr(repl, 'async_calls'), "REPL should track async call count"
+
+        # Test 4: REPL cost summary structure
+        repl_summary = repl.get_repl_cost_summary()
+        assert 'total_calls' in repl_summary, "REPL summary should have total_calls"
+        assert 'depth' in repl_summary, "REPL summary should have depth"
+        assert 'breakdown' in repl_summary, "REPL summary should have breakdown"
+        assert 'sync_calls' in repl_summary['breakdown'], "Should track sync calls separately"
+        assert 'async_calls' in repl_summary['breakdown'], "Should track async calls separately"
+
+        print("✓ Cost tracking structure works correctly")
+        return True
+
+    except Exception as e:
+        print(f"✗ Cost tracking test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def main():
     """Run all tests."""
     print("="*80)
@@ -232,6 +297,7 @@ def main():
         test_prompts,
         test_llm_client,
         test_rlm_initialization,
+        test_cost_tracking,
     ]
 
     results = []

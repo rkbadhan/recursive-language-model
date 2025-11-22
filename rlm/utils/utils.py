@@ -27,7 +27,7 @@ def find_code_blocks(text: str) -> Optional[List[str]]:
     Returns:
         List of code blocks (as strings), or None if no blocks found
     """
-    pattern = r'```repl\s*\n(.*?)\n```'
+    pattern = r'```repl\s*\n(.*?)```'
     matches = re.finditer(pattern, text, re.DOTALL)
 
     results = []
@@ -36,6 +36,32 @@ def find_code_blocks(text: str) -> Optional[List[str]]:
         results.append(code_content)
 
     return results if results else None
+
+
+def _extract_balanced_parens(text: str, start_pos: int) -> Optional[str]:
+    """
+    Extract content from balanced parentheses starting at start_pos.
+
+    Args:
+        text: Text containing parentheses
+        start_pos: Position of opening parenthesis
+
+    Returns:
+        Content between balanced parens, or None if unbalanced
+    """
+    if start_pos >= len(text) or text[start_pos] != '(':
+        return None
+
+    depth = 0
+    for i in range(start_pos, len(text)):
+        if text[i] == '(':
+            depth += 1
+        elif text[i] == ')':
+            depth -= 1
+            if depth == 0:
+                return text[start_pos + 1:i]
+
+    return None
 
 
 def find_final_answer(text: str) -> Optional[Tuple[str, str]]:
@@ -50,18 +76,18 @@ def find_final_answer(text: str) -> Optional[Tuple[str, str]]:
         or None if neither pattern is found
     """
     # Check for FINAL_VAR pattern first
-    # Pattern matches FINAL_VAR anywhere in text, preferably at start of line
-    final_var_pattern = r'FINAL_VAR\((.*?)\)'
-    match = re.search(final_var_pattern, text, re.DOTALL)
+    match = re.search(r'FINAL_VAR\(', text)
     if match:
-        return ('FINAL_VAR', match.group(1).strip())
+        content = _extract_balanced_parens(text, match.end() - 1)
+        if content is not None:
+            return ('FINAL_VAR', content.strip())
 
     # Check for FINAL pattern
-    # Pattern matches FINAL anywhere in text, preferably at start of line
-    final_pattern = r'FINAL\((.*?)\)'
-    match = re.search(final_pattern, text, re.DOTALL)
+    match = re.search(r'FINAL\(', text)
     if match:
-        return ('FINAL', match.group(1).strip())
+        content = _extract_balanced_parens(text, match.end() - 1)
+        if content is not None:
+            return ('FINAL', content.strip())
 
     return None
 

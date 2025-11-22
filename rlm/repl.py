@@ -58,16 +58,16 @@ class SubRLM(RLM):
     For deeper recursion (depth > 1), this could be replaced with a full RLM_REPL.
     """
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini", track_costs: bool = True):
         """
         Initialize the sub-RLM.
 
         Args:
             model: Model identifier to use for recursive calls
+            track_costs: Whether to track API costs
         """
         self.model = model
-        # OpenAIClient will validate API key and raise clear error if missing
-        self.client = OpenAIClient(model=model)
+        self.client = OpenAIClient(model=model, track_costs=track_costs)
 
     def completion(
         self,
@@ -84,16 +84,15 @@ class SubRLM(RLM):
         Returns:
             str: The LLM's response
         """
-        # Let exceptions propagate - caller should handle errors
         return self.client.completion(messages=prompt, timeout=300)
 
     def cost_summary(self) -> Dict[str, Any]:
-        """Not implemented for SubRLM."""
-        raise NotImplementedError("Cost tracking not implemented for SubRLM")
+        """Get cost summary from the client."""
+        return self.client.get_cost_summary()
 
     def reset(self) -> None:
-        """Not implemented for SubRLM."""
-        raise NotImplementedError("Reset not implemented for SubRLM")
+        """Reset cost tracking."""
+        self.client.reset_costs()
 
 
 class REPLEnv:
@@ -117,6 +116,7 @@ class REPLEnv:
         max_depth: int = 1,
         enable_logging: bool = False,
         parent_rlm_class=None,
+        track_costs: bool = False,
     ):
         """
         Initialize the REPL environment.
@@ -130,6 +130,7 @@ class REPLEnv:
             max_depth: Maximum recursion depth allowed
             enable_logging: Whether to enable logging for recursive RLMs
             parent_rlm_class: Class to use for recursive RLM creation (for depth > 1)
+            track_costs: Whether to track API costs
         """
         # Store original working directory
         self.original_cwd = os.getcwd()
@@ -143,6 +144,12 @@ class REPLEnv:
         self.recursive_model = recursive_model
         self.enable_logging = enable_logging
         self.parent_rlm_class = parent_rlm_class
+        self.track_costs = track_costs
+
+        # Cost tracking for async calls
+        self.async_input_tokens = 0
+        self.async_output_tokens = 0
+        self.async_calls = 0
 
         # Initialize async client for true async support (using OpenAI's native AsyncOpenAI)
         # Let AsyncOpenAI handle validation - it will fail with clear error if no API key
@@ -160,11 +167,11 @@ class REPLEnv:
                 depth=depth + 1,
                 max_depth=max_depth,
                 enable_logging=enable_logging,
-                track_costs=False,  # Avoid nested cost tracking
+                track_costs=track_costs,
             )
         else:
             # Use simple SubRLM for depth=1 or when max_depth reached
-            self.sub_rlm: RLM = SubRLM(model=recursive_model)
+            self.sub_rlm: RLM = SubRLM(model=recursive_model, track_costs=track_costs)
 
         # Setup safe execution environment
         self.globals = self._create_safe_globals()
@@ -276,6 +283,13 @@ class REPLEnv:
                 messages=messages,
                 temperature=0.7,
             )
+
+            # Track costs if enabled
+            if self.track_costs and hasattr(response, 'usage'):
+                self.async_input_tokens += response.usage.prompt_tokens
+                self.async_output_tokens += response.usage.completion_tokens
+                self.async_calls += 1
+
             return response.choices[0].message.content
 
         def llm_query_batch(prompts: List[str]) -> List[str]:
@@ -400,6 +414,13 @@ class REPLEnv:
                 messages=messages,
                 temperature=0.7,
             )
+
+            # Track costs if enabled
+            if self.track_costs and hasattr(response, 'usage'):
+                self.async_input_tokens += response.usage.prompt_tokens
+                self.async_output_tokens += response.usage.completion_tokens
+                self.async_calls += 1
+
             return response.choices[0].message.content
 
         tasks = [single_query(prompt) for prompt in prompts]
@@ -647,6 +668,58 @@ async def __async_exec():
             locals=self.locals.copy(),
             execution_time=execution_time
         )
+
+    def get_repl_cost_summary(self) -> Dict[str, Any]:
+        """
+        Get cost summary for all REPL-initiated LLM calls.
+
+        Returns:
+            Dictionary with aggregated cost information from sync and async calls
+        """
+        if not self.track_costs:
+            return {"error": "Cost tracking not enabled"}
+
+        # Get sync call costs from sub_rlm
+        sync_costs = self.sub_rlm.cost_summary()
+
+        # Calculate async call costs
+        async_input_cost = 0.0
+        async_output_cost = 0.0
+
+        # Model pricing (per 1M tokens)
+        pricing = {
+            "gpt-4o": {"input": 2.50, "output": 10.00},
+            "gpt-4o-mini": {"input": 0.150, "output": 0.600},
+            "gpt-4-turbo": {"input": 10.00, "output": 30.00},
+            "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
+        }
+
+        if self.async_model in pricing:
+            async_input_cost = (self.async_input_tokens / 1_000_000) * pricing[self.async_model]["input"]
+            async_output_cost = (self.async_output_tokens / 1_000_000) * pricing[self.async_model]["output"]
+
+        # Aggregate costs
+        total_calls = sync_costs.get('total_calls', 0) + self.async_calls
+        total_input_tokens = sync_costs.get('input_tokens', 0) + self.async_input_tokens
+        total_output_tokens = sync_costs.get('output_tokens', 0) + self.async_output_tokens
+        sync_cost = sync_costs.get('estimated_cost_usd', 0.0)
+        async_cost = async_input_cost + async_output_cost
+
+        return {
+            "depth": self.depth,
+            "total_calls": total_calls,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens,
+            "estimated_cost_usd": round(sync_cost + async_cost, 4),
+            "breakdown": {
+                "sync_calls": sync_costs.get('total_calls', 0),
+                "async_calls": self.async_calls,
+                "sync_cost_usd": round(sync_cost, 4),
+                "async_cost_usd": round(async_cost, 4),
+            },
+            "model": self.recursive_model,
+        }
 
     def __del__(self):
         """Clean up temporary directory and async client on deletion."""
