@@ -58,18 +58,18 @@ You can now **evaluate RLM on the OOLONG benchmark** to validate these performan
 pip install -r requirements-oolong.txt
 
 # Test the integration
-python test_oolong_integration.py
+python eval/oolong/test_integration.py
 
 # Run evaluation on OOLONG-synth
-python eval_oolong.py --dataset synth --max-examples 10
+python eval/oolong/eval.py --dataset synth --max-examples 10
 
 # Run evaluation on OOLONG-real
-python eval_oolong.py --dataset real --max-examples 10
+python eval/oolong/eval.py --dataset real --max-examples 10
 ```
 
 ### Full Documentation
 
-See [docs/OOLONG_BENCHMARK.md](docs/OOLONG_BENCHMARK.md) for:
+See [eval/oolong/README.md](eval/oolong/README.md) for:
 - Detailed setup instructions
 - Command-line options
 - Cost optimization tips
@@ -82,12 +82,14 @@ See [docs/OOLONG_BENCHMARK.md](docs/OOLONG_BENCHMARK.md) for:
 
 ```
 recursive-language-model/
-├── rlm/
+├── rlm/                      # Core RLM implementation
 │   ├── __init__.py           # Package initialization
 │   ├── rlm.py                # Base RLM abstract class
 │   ├── rlm_repl.py           # Main RLM implementation
 │   ├── repl.py               # REPL environment
-│   ├── oolong_adapter.py     # OOLONG benchmark adapter
+│   ├── interfaces/           # Different interfaces for RLM
+│   │   ├── __init__.py
+│   │   └── chat_completion.py # Chat completion API (messages-based)
 │   ├── utils/
 │   │   ├── llm.py            # OpenAI client wrapper
 │   │   ├── prompts.py        # Prompt templates
@@ -95,13 +97,17 @@ recursive-language-model/
 │   └── logger/
 │       ├── root_logger.py    # Root LM logger
 │       └── repl_logger.py    # REPL execution logger (Jupyter-style)
-├── docs/
-│   ├── OOLONG_BENCHMARK.md   # OOLONG evaluation guide
+├── eval/                     # Evaluation and benchmarking
+│   ├── __init__.py
+│   └── oolong/               # OOLONG benchmark evaluation
+│       ├── __init__.py
+│       ├── eval.py           # Main evaluation script
+│       ├── test_integration.py # Integration tests
+│       └── README.md         # OOLONG documentation
+├── docs/                     # General documentation
 │   ├── IMPLEMENTATION_SUMMARY.md
 │   └── CRITICAL_REVIEW.md
 ├── main.py                   # Example demonstrations
-├── eval_oolong.py            # OOLONG benchmark evaluation script
-├── test_oolong_integration.py # OOLONG integration tests
 ├── requirements.txt          # Core dependencies
 ├── requirements-oolong.txt   # OOLONG benchmark dependencies
 ├── .env.example             # Environment variable template

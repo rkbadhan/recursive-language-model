@@ -7,7 +7,7 @@ It uses mock examples to verify the integration works correctly.
 """
 
 import os
-from rlm.oolong_adapter import RLMOolongAdapter, create_oolong_compatible_model
+from rlm.interfaces import RLMOolongAdapter, create_oolong_compatible_model
 
 
 def test_adapter_basic():

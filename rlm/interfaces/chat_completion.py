@@ -1,27 +1,34 @@
 """
-OOLONG Benchmark Adapter for RLM.
+Chat Completion Interface for RLM.
 
-This module provides an adapter to evaluate RLM on the OOLONG benchmark.
-It converts between OOLONG's message format and RLM's context/query interface.
+This module provides a standard chat completion interface for RLM, making it
+compatible with message-based APIs like OpenAI ChatCompletion, Anthropic Messages,
+and evaluation frameworks like OOLONG, RULER, etc.
+
+It converts between the standard chat messages format and RLM's context/query interface.
 """
 
 from typing import List, Dict, Any, Optional
 from rlm.rlm_repl import RLM_REPL
 
 
-class RLMOolongAdapter:
+class RLMChatCompletionClient:
     """
-    Adapter to make RLM compatible with OOLONG benchmark evaluation.
+    Chat completion interface for RLM.
 
-    OOLONG expects models to work with message-based APIs (like LiteLLM),
-    but RLM uses a context/query interface. This adapter bridges the gap.
+    Provides a standard message-based API compatible with OpenAI, Anthropic,
+    and other chat completion interfaces. Converts messages to RLM's
+    context/query format internally.
 
     Usage:
-        adapter = RLMOolongAdapter(
+        client = RLMChatCompletionClient(
             model="gpt-4o",
             recursive_model="gpt-4o-mini"
         )
-        response = adapter.completion(messages=[...])
+        response = client.completion(messages=[
+            {"role": "system", "content": "..."},
+            {"role": "user", "content": "..."}
+        ])
     """
 
     def __init__(
@@ -35,7 +42,7 @@ class RLMOolongAdapter:
         api_key: Optional[str] = None,
     ):
         """
-        Initialize the RLM adapter for OOLONG.
+        Initialize the chat completion client for RLM.
 
         Args:
             model: Root LM model name (e.g., "gpt-4o")
@@ -65,15 +72,15 @@ class RLMOolongAdapter:
         **kwargs
     ) -> str:
         """
-        Generate completion compatible with OOLONG evaluation.
+        Generate completion using standard chat messages format.
 
-        OOLONG format:
+        Standard format:
             messages = [
                 {"role": "system", "content": "<context>"},
                 {"role": "user", "content": "<question>"}
             ]
 
-        RLM format:
+        Internal conversion to RLM format:
             rlm.completion(context="<context>", query="<question>")
 
         Args:
@@ -164,24 +171,25 @@ class RLMOolongAdapter:
         self.rlm.reset()
 
 
-def create_oolong_compatible_model(
+def create_chat_completion_client(
     model: str = "gpt-4o",
     recursive_model: str = "gpt-4o-mini",
     **kwargs
-) -> RLMOolongAdapter:
+) -> RLMChatCompletionClient:
     """
-    Factory function to create an OOLONG-compatible RLM instance.
+    Factory function to create a chat completion client for RLM.
 
-    This is the main entry point for OOLONG evaluation scripts.
+    This provides a standard chat API interface, making RLM compatible
+    with any system expecting OpenAI/Anthropic-style message APIs.
 
     Example:
-        model = create_oolong_compatible_model(
+        client = create_chat_completion_client(
             model="gpt-4o",
             recursive_model="gpt-4o-mini",
             enable_logging=False
         )
 
-        response = model.completion(messages=[
+        response = client.completion(messages=[
             {"role": "system", "content": "Context: ..."},
             {"role": "user", "content": "Question: ..."}
         ])
@@ -192,10 +200,15 @@ def create_oolong_compatible_model(
         **kwargs: Additional RLM parameters
 
     Returns:
-        RLMOolongAdapter instance
+        RLMChatCompletionClient instance
     """
-    return RLMOolongAdapter(
+    return RLMChatCompletionClient(
         model=model,
         recursive_model=recursive_model,
         **kwargs
     )
+
+
+# Backward compatibility aliases for OOLONG
+RLMOolongAdapter = RLMChatCompletionClient
+create_oolong_compatible_model = create_chat_completion_client

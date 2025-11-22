@@ -6,8 +6,8 @@ This script evaluates Recursive Language Models on the OOLONG benchmark,
 which tests long-context aggregation and reasoning capabilities.
 
 Usage:
-    python eval_oolong.py --dataset synth --output results.jsonl
-    python eval_oolong.py --dataset real --model gpt-4o --max-examples 100
+    python eval/oolong/eval.py --dataset synth --output results.jsonl
+    python eval/oolong/eval.py --dataset real --model gpt-4o --max-examples 100
 
 Requirements:
     pip install datasets transformers tiktoken jsonlines
@@ -20,7 +20,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from datasets import load_dataset
-from rlm.oolong_adapter import RLMOolongAdapter
+from rlm.interfaces import RLMOolongAdapter
 
 
 def load_oolong_dataset(

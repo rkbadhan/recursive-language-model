@@ -9,12 +9,25 @@ a REPL environment.
 from .rlm import RLM
 from .rlm_repl import RLM_REPL
 
-# OOLONG benchmark integration (optional import)
+# Chat completion interface (optional - works without extra dependencies)
 try:
-    from .oolong_adapter import RLMOolongAdapter, create_oolong_compatible_model
-    __all__ = ["RLM", "RLM_REPL", "RLMOolongAdapter", "create_oolong_compatible_model"]
+    from .interfaces import (
+        RLMChatCompletionClient,
+        create_chat_completion_client,
+        # Backward compatibility
+        RLMOolongAdapter,
+        create_oolong_compatible_model,
+    )
+    __all__ = [
+        "RLM",
+        "RLM_REPL",
+        "RLMChatCompletionClient",
+        "create_chat_completion_client",
+        "RLMOolongAdapter",
+        "create_oolong_compatible_model",
+    ]
 except ImportError:
-    # OOLONG dependencies not installed
+    # Interfaces module not available
     __all__ = ["RLM", "RLM_REPL"]
 
 __version__ = "0.2.0"

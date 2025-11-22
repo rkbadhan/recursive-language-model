@@ -70,7 +70,7 @@ OPENAI_API_KEY=sk-your-key-here
 Test the integration without downloading full datasets:
 
 ```bash
-python test_oolong_integration.py
+python eval/oolong/test_integration.py
 ```
 
 This runs 3 tests:
@@ -81,13 +81,13 @@ This runs 3 tests:
 ### Evaluate on OOLONG-Synth
 
 ```bash
-python eval_oolong.py --dataset synth --max-examples 10
+python eval/oolong/eval.py --dataset synth --max-examples 10
 ```
 
 ### Evaluate on OOLONG-Real
 
 ```bash
-python eval_oolong.py --dataset real --max-examples 10
+python eval/oolong/eval.py --dataset real --max-examples 10
 ```
 
 ---
@@ -97,7 +97,7 @@ python eval_oolong.py --dataset real --max-examples 10
 ### Basic Evaluation
 
 ```bash
-python eval_oolong.py \
+python eval/oolong/eval.py \
   --dataset synth \
   --model gpt-4o \
   --recursive-model gpt-4o-mini \
@@ -121,12 +121,12 @@ python eval_oolong.py \
 
 **Quick test (10 examples):**
 ```bash
-python eval_oolong.py --dataset synth --max-examples 10
+python eval/oolong/eval.py --dataset synth --max-examples 10
 ```
 
 **Full evaluation with logging:**
 ```bash
-python eval_oolong.py \
+python eval/oolong/eval.py \
   --dataset real \
   --enable-logging \
   --output oolong_real_full.jsonl
@@ -134,7 +134,7 @@ python eval_oolong.py \
 
 **Budget evaluation (cheaper model):**
 ```bash
-python eval_oolong.py \
+python eval/oolong/eval.py \
   --dataset synth \
   --model gpt-4o-mini \
   --recursive-model gpt-4o-mini \
@@ -202,7 +202,7 @@ The evaluation script produces two files:
 ### Using the Adapter Directly
 
 ```python
-from rlm.oolong_adapter import RLMOolongAdapter
+from rlm.interfaces import RLMOolongAdapter
 
 # Create adapter
 adapter = RLMOolongAdapter(
@@ -472,8 +472,8 @@ The OOLONG integration allows you to:
 **Quick start:**
 ```bash
 pip install -r requirements-oolong.txt
-python test_oolong_integration.py  # Verify setup
-python eval_oolong.py --dataset synth --max-examples 10  # Run evaluation
+python eval/oolong/test_integration.py  # Verify setup
+python eval/oolong/eval.py --dataset synth --max-examples 10  # Run evaluation
 ```
 
 Happy benchmarking! 🎉
