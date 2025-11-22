@@ -73,10 +73,9 @@ Test the integration without downloading full datasets:
 python eval/oolong/test_integration.py
 ```
 
-This runs 3 tests:
+This runs 2 tests:
 1. Basic adapter functionality
 2. OOLONG format compatibility
-3. Batch completion
 
 ### Evaluate on OOLONG-Synth
 
@@ -243,7 +242,7 @@ model = create_oolong_compatible_model(
 response = model.completion(messages)
 ```
 
-### Batch Processing
+### Processing Multiple Examples
 
 ```python
 # Multiple examples
@@ -252,8 +251,11 @@ message_list = [
     [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}],
 ]
 
-# Process in batch (currently sequential, could be parallelized)
-responses = adapter.batch_completion(message_list)
+# Process each example (standard approach)
+responses = []
+for messages in message_list:
+    response = adapter.completion(messages)
+    responses.append(response)
 ```
 
 ---
@@ -450,7 +452,7 @@ To improve OOLONG integration:
 
 1. **Better answer parsing:** The current implementation uses simple string matching. More sophisticated parsing could improve accuracy.
 
-2. **Batch optimization:** Implement true parallel processing for batch evaluations.
+2. **Async processing:** Implement async/await for parallel evaluation of multiple examples.
 
 3. **Caching:** Add prompt caching to reduce costs on repeated contexts.
 

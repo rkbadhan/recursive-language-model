@@ -129,32 +129,6 @@ class RLMChatCompletionClient:
             # Return error message if RLM fails
             return f"RLM_ERROR: {str(e)}"
 
-    def batch_completion(
-        self,
-        message_list: List[List[Dict[str, str]]],
-        **kwargs
-    ) -> List[str]:
-        """
-        Generate completions for multiple examples.
-
-        Note: Currently processes sequentially. Could be parallelized
-        using async RLM calls in the future.
-
-        Args:
-            message_list: List of message lists
-            **kwargs: Additional parameters
-
-        Returns:
-            List of answer strings
-        """
-        results = []
-
-        for messages in message_list:
-            result = self.completion(messages, **kwargs)
-            results.append(result)
-
-        return results
-
     def cost_summary(self) -> Dict[str, Any]:
         """
         Get cost summary from RLM.

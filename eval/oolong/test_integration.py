@@ -109,48 +109,6 @@ def test_adapter_oolong_format():
         return False
 
 
-def test_batch_completion():
-    """Test batch completion."""
-    print("\n" + "="*80)
-    print("TEST 3: Batch Completion")
-    print("="*80 + "\n")
-
-    adapter = RLMOolongAdapter(
-        model="gpt-4o-mini",
-        max_iterations=5,
-        enable_logging=False,
-    )
-
-    # Multiple message sets
-    message_list = [
-        [
-            {"role": "system", "content": "X = 10"},
-            {"role": "user", "content": "What is X + 5?"}
-        ],
-        [
-            {"role": "system", "content": "Y = 20"},
-            {"role": "user", "content": "What is Y - 3?"}
-        ],
-    ]
-
-    print(f"Processing {len(message_list)} examples in batch...")
-    responses = adapter.batch_completion(message_list)
-
-    print(f"\nResults:")
-    for i, resp in enumerate(responses, 1):
-        print(f"  Example {i}: {resp[:80]}...")
-
-    expected = ["15", "17"]
-    passed = all(exp in resp for exp, resp in zip(expected, responses))
-
-    if passed:
-        print("\n✓ Test PASSED - All answers found")
-    else:
-        print("\n✗ Test FAILED - Some answers missing")
-
-    return passed
-
-
 def main():
     """Run all tests."""
     # Check for API key
@@ -178,12 +136,6 @@ def main():
     except Exception as e:
         print(f"\n✗ Test FAILED with error: {e}")
         results.append(("OOLONG Format", False))
-
-    try:
-        results.append(("Batch Completion", test_batch_completion()))
-    except Exception as e:
-        print(f"\n✗ Test FAILED with error: {e}")
-        results.append(("Batch Completion", False))
 
     # Summary
     print("\n" + "="*80)
