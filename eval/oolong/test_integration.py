@@ -7,17 +7,17 @@ It uses mock examples to verify the integration works correctly.
 """
 
 import os
-from rlm.interfaces import RLMOolongAdapter, create_oolong_compatible_model
+from rlm import RLM_REPL
 
 
-def test_adapter_basic():
-    """Test basic adapter functionality."""
+def test_rlm_basic():
+    """Test basic RLM functionality."""
     print("\n" + "="*80)
-    print("TEST 1: Basic Adapter Functionality")
+    print("TEST 1: Basic RLM Functionality")
     print("="*80 + "\n")
 
-    # Create adapter
-    adapter = RLMOolongAdapter(
+    # Create RLM
+    rlm = RLM_REPL(
         model="gpt-4o-mini",
         recursive_model="gpt-4o-mini",
         max_iterations=5,
@@ -25,24 +25,15 @@ def test_adapter_basic():
         track_costs=True,
     )
 
-    # Test with simple messages
-    messages = [
-        {
-            "role": "system",
-            "content": "Alice has 5 apples. Bob has 3 oranges. Charlie has 7 bananas."
-        },
-        {
-            "role": "user",
-            "content": "How many total fruits are there?"
-        }
-    ]
+    # Test data
+    context = "Alice has 5 apples. Bob has 3 oranges. Charlie has 7 bananas."
+    query = "How many total fruits are there?"
 
-    print("Input messages:")
-    for msg in messages:
-        print(f"  {msg['role']}: {msg['content'][:80]}...")
+    print("Context:", context)
+    print("Query:", query)
 
-    print("\nCalling RLM via adapter...")
-    response = adapter.completion(messages)
+    print("\nCalling RLM...")
+    response = rlm.completion(context=context, query=query)
 
     print(f"\nResponse: {response}")
 
@@ -53,22 +44,22 @@ def test_adapter_basic():
         print("✗ Test FAILED - Expected 17 in response")
 
     # Show costs
-    if adapter.rlm.track_costs:
-        costs = adapter.cost_summary()
+    if rlm.track_costs:
+        costs = rlm.cost_summary()
         print(f"\nCost: ${costs.get('estimated_cost_usd', 0):.4f}")
         print(f"Tokens: {costs.get('total_tokens', 0):,}")
 
     return "17" in response
 
 
-def test_adapter_oolong_format():
-    """Test adapter with OOLONG-style messages."""
+def test_rlm_oolong_format():
+    """Test RLM with OOLONG-style data."""
     print("\n" + "="*80)
     print("TEST 2: OOLONG Format Compatibility")
     print("="*80 + "\n")
 
-    # Create adapter using factory function
-    model = create_oolong_compatible_model(
+    # Create RLM
+    rlm = RLM_REPL(
         model="gpt-4o-mini",
         recursive_model="gpt-4o-mini",
         max_iterations=5,
@@ -85,23 +76,18 @@ def test_adapter_oolong_format():
     Entry 6: User=1002, Category=entity, Value=Zeta
     """
 
-    question = "Only consider entries for User=1001. How many have Category='entity'?"
-
-    messages = [
-        {"role": "system", "content": context},
-        {"role": "user", "content": question}
-    ]
+    query = "Only consider entries for User=1001. How many have Category='entity'?"
 
     print("Context length:", len(context))
-    print("Question:", question)
+    print("Query:", query)
 
-    print("\nCalling RLM via adapter...")
-    response = model.completion(messages)
+    print("\nCalling RLM...")
+    response = rlm.completion(context=context, query=query)
 
     print(f"\nResponse: {response}")
 
     # Check if answer is correct (should be 2)
-    if "2" in response and "1001" in response:
+    if "2" in response:
         print("✓ Test PASSED - Found correct answer (2)")
         return True
     else:
@@ -126,13 +112,13 @@ def main():
 
     # Run tests
     try:
-        results.append(("Basic Adapter", test_adapter_basic()))
+        results.append(("Basic RLM", test_rlm_basic()))
     except Exception as e:
         print(f"\n✗ Test FAILED with error: {e}")
-        results.append(("Basic Adapter", False))
+        results.append(("Basic RLM", False))
 
     try:
-        results.append(("OOLONG Format", test_adapter_oolong_format()))
+        results.append(("OOLONG Format", test_rlm_oolong_format()))
     except Exception as e:
         print(f"\n✗ Test FAILED with error: {e}")
         results.append(("OOLONG Format", False))

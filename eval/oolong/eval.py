@@ -20,7 +20,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from datasets import load_dataset
-from rlm.interfaces import RLMOolongAdapter
+from rlm import RLM_REPL
 
 
 def load_oolong_dataset(
@@ -88,32 +88,6 @@ def load_oolong_dataset(
         print(f"Average context length: {avg_len:,.0f} tokens")
 
     return examples
-
-
-def format_messages_for_rlm(example: Dict[str, Any]) -> List[Dict[str, str]]:
-    """
-    Format OOLONG example as messages for RLM adapter.
-
-    Args:
-        example: OOLONG dataset example
-
-    Returns:
-        List of message dicts
-    """
-    # Get context text (with or without labels)
-    context = example.get("context_window_text_with_labels") or \
-              example.get("context_window_text", "")
-
-    # Get question
-    question = example.get("question", "")
-
-    # Format as messages (compatible with LiteLLM format)
-    messages = [
-        {"role": "system", "content": context},
-        {"role": "user", "content": question}
-    ]
-
-    return messages
 
 
 def process_response_synth(response: str, answer: Any) -> Dict[str, Any]:
@@ -203,7 +177,7 @@ def evaluate_rlm_on_oolong(
         print("No examples to evaluate!")
         return {}
 
-    # Create RLM adapter
+    # Create RLM
     print(f"\n{'='*80}")
     print(f"Initializing RLM...")
     print(f"  Root model: {model}")
@@ -211,7 +185,7 @@ def evaluate_rlm_on_oolong(
     print(f"  Max iterations: {max_iterations}")
     print(f"{'='*80}\n")
 
-    rlm_adapter = RLMOolongAdapter(
+    rlm = RLM_REPL(
         model=model,
         recursive_model=recursive_model,
         max_iterations=max_iterations,
@@ -238,12 +212,15 @@ def evaluate_rlm_on_oolong(
         print(f"  Context length: {example.get('context_len', 0):,} tokens")
         print(f"  Task: {example.get('task', 'unknown')}")
 
-        # Format messages
-        messages = format_messages_for_rlm(example)
+        # Extract context and query directly from example
+        context = example.get("context_window_text_with_labels") or \
+                  example.get("context_window_text", "")
+        query = example.get("question", "")
 
         # Get RLM response
         try:
-            response = rlm_adapter.completion(messages)
+            rlm.reset()  # Reset RLM state for fresh evaluation
+            response = rlm.completion(context=context, query=query)
         except Exception as e:
             print(f"  ERROR: {e}")
             response = f"ERROR: {str(e)}"
@@ -291,8 +268,8 @@ def evaluate_rlm_on_oolong(
     }
 
     # Add cost summary if available
-    if rlm_adapter.rlm.track_costs:
-        cost_info = rlm_adapter.cost_summary()
+    if rlm.track_costs:
+        cost_info = rlm.cost_summary()
         summary["total_cost_usd"] = cost_info.get("estimated_cost_usd", 0)
         summary["total_tokens"] = cost_info.get("total_tokens", 0)
         summary["total_calls"] = cost_info.get("total_calls", 0)

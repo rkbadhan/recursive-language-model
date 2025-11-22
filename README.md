@@ -87,9 +87,6 @@ recursive-language-model/
 │   ├── rlm.py                # Base RLM abstract class
 │   ├── rlm_repl.py           # Main RLM implementation
 │   ├── repl.py               # REPL environment
-│   ├── interfaces/           # Different interfaces for RLM
-│   │   ├── __init__.py
-│   │   └── chat_completion.py # Chat completion API (messages-based)
 │   ├── utils/
 │   │   ├── llm.py            # OpenAI client wrapper
 │   │   ├── prompts.py        # Prompt templates
@@ -99,12 +96,14 @@ recursive-language-model/
 │       └── repl_logger.py    # REPL execution logger (Jupyter-style)
 ├── eval/                     # Evaluation and benchmarking
 │   ├── __init__.py
+│   ├── README.md             # Evaluation overview
 │   └── oolong/               # OOLONG benchmark evaluation
 │       ├── __init__.py
 │       ├── eval.py           # Main evaluation script
 │       ├── test_integration.py # Integration tests
 │       └── README.md         # OOLONG documentation
 ├── docs/                     # General documentation
+│   ├── ARCHITECTURE.md
 │   ├── IMPLEMENTATION_SUMMARY.md
 │   └── CRITICAL_REVIEW.md
 ├── main.py                   # Example demonstrations

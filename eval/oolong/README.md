@@ -74,7 +74,7 @@ python eval/oolong/test_integration.py
 ```
 
 This runs 2 tests:
-1. Basic adapter functionality
+1. Basic RLM functionality
 2. OOLONG format compatibility
 
 ### Evaluate on OOLONG-Synth
@@ -198,13 +198,13 @@ The evaluation script produces two files:
 
 ## Programmatic Usage
 
-### Using the Adapter Directly
+### Using RLM Directly
 
 ```python
-from rlm.interfaces import RLMOolongAdapter
+from rlm import RLM_REPL
 
-# Create adapter
-adapter = RLMOolongAdapter(
+# Create RLM
+rlm = RLM_REPL(
     model="gpt-4o",
     recursive_model="gpt-4o-mini",
     max_iterations=15,
@@ -212,49 +212,40 @@ adapter = RLMOolongAdapter(
     track_costs=True,
 )
 
-# Format messages like OOLONG
-messages = [
-    {"role": "system", "content": "<long context here>"},
-    {"role": "user", "content": "What is the answer?"}
-]
+# Call RLM with context and query
+context = "<long context here>"
+query = "What is the answer?"
 
-# Get response
-response = adapter.completion(messages)
+response = rlm.completion(context=context, query=query)
 print(response)
 
 # Check costs
-costs = adapter.cost_summary()
+costs = rlm.cost_summary()
 print(f"Cost: ${costs['estimated_cost_usd']:.4f}")
-```
-
-### Factory Function
-
-```python
-from rlm import create_oolong_compatible_model
-
-# Quick creation
-model = create_oolong_compatible_model(
-    model="gpt-4o",
-    recursive_model="gpt-4o-mini"
-)
-
-# Use it
-response = model.completion(messages)
 ```
 
 ### Processing Multiple Examples
 
 ```python
-# Multiple examples
-message_list = [
-    [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}],
-    [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}],
+from rlm import RLM_REPL
+
+# Create RLM
+rlm = RLM_REPL(model="gpt-4o", recursive_model="gpt-4o-mini")
+
+# Multiple examples from OOLONG dataset
+examples = [
+    {"context": "...", "query": "..."},
+    {"context": "...", "query": "..."},
 ]
 
-# Process each example (standard approach)
+# Process each example
 responses = []
-for messages in message_list:
-    response = adapter.completion(messages)
+for example in examples:
+    rlm.reset()  # Reset state between examples
+    response = rlm.completion(
+        context=example["context"],
+        query=example["query"]
+    )
     responses.append(response)
 ```
 
@@ -269,11 +260,7 @@ OOLONG Dataset
     ↓
 Load examples from HuggingFace
     ↓
-Format as messages (system=context, user=question)
-    ↓
-RLMOolongAdapter
-    ↓
-Extract context and query
+Extract context and query from examples
     ↓
 RLM_REPL.completion(context, query)
     ↓
@@ -284,21 +271,22 @@ Returns answer
 Score and save results
 ```
 
-### Message Format Conversion
+### Data Extraction
 
-**OOLONG format:**
+**OOLONG example format:**
 ```python
-messages = [
-    {"role": "system", "content": "<context>"},
-    {"role": "user", "content": "<question>"}
-]
+example = {
+    "context_window_text": "<context>",
+    "question": "<question>",
+    "answer": "<expected answer>"
+}
 ```
 
-**Converted to RLM format:**
+**RLM format:**
 ```python
 rlm.completion(
-    context="<context>",
-    query="<question>"
+    context=example["context_window_text"],
+    query=example["question"]
 )
 ```
 
@@ -395,18 +383,19 @@ def process_response_custom(response: str, answer: Any) -> Dict[str, Any]:
 
 ### Integration with Other Benchmarks
 
-The `RLMOolongAdapter` can be adapted for other benchmarks:
+RLM can be used with any benchmark by extracting context and query:
 
 ```python
-# Works with any message-based API
-adapter = RLMOolongAdapter(...)
+from rlm import RLM_REPL
+
+# Create RLM
+rlm = RLM_REPL(model="gpt-4o", recursive_model="gpt-4o-mini")
 
 # Use with custom datasets
-my_messages = [
-    {"role": "system", "content": my_context},
-    {"role": "user", "content": my_question}
-]
-response = adapter.completion(my_messages)
+my_context = "..."
+my_question = "..."
+
+response = rlm.completion(context=my_context, query=my_question)
 ```
 
 ---
@@ -458,7 +447,7 @@ To improve OOLONG integration:
 
 4. **Additional metrics:** Track reasoning steps, token usage per task, etc.
 
-See `eval_oolong.py` and `rlm/oolong_adapter.py` for implementation details.
+See `eval/oolong/eval.py` for implementation details.
 
 ---
 
