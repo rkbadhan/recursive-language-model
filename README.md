@@ -47,11 +47,42 @@ context = load_1M_tokens()  # Store as REPL variable
 - Base GPT-5: Significant degradation
 - Handles contexts that don't fit in any model's window
 
+## 🎯 OOLONG Benchmark Evaluation
+
+You can now **evaluate RLM on the OOLONG benchmark** to validate these performance claims!
+
+### Quick Start
+
+```bash
+# Install OOLONG dependencies
+pip install -r requirements-oolong.txt
+
+# Test the integration
+python eval/oolong/test_integration.py
+
+# Run evaluation on OOLONG-synth
+python eval/oolong/eval.py --dataset synth --max-examples 10
+
+# Run evaluation on OOLONG-real
+python eval/oolong/eval.py --dataset real --max-examples 10
+```
+
+### Full Documentation
+
+See [eval/oolong/README.md](eval/oolong/README.md) for:
+- Detailed setup instructions
+- Command-line options
+- Cost optimization tips
+- Result interpretation
+- Programmatic usage examples
+
+**Compare RLM vs baselines yourself!** 📊
+
 ## 📁 Project Structure
 
 ```
 recursive-language-model/
-├── rlm/
+├── rlm/                      # Core RLM implementation
 │   ├── __init__.py           # Package initialization
 │   ├── rlm.py                # Base RLM abstract class
 │   ├── rlm_repl.py           # Main RLM implementation
@@ -63,8 +94,21 @@ recursive-language-model/
 │   └── logger/
 │       ├── root_logger.py    # Root LM logger
 │       └── repl_logger.py    # REPL execution logger (Jupyter-style)
+├── eval/                     # Evaluation and benchmarking
+│   ├── __init__.py
+│   ├── README.md             # Evaluation overview
+│   └── oolong/               # OOLONG benchmark evaluation
+│       ├── __init__.py
+│       ├── eval.py           # Main evaluation script
+│       ├── test_integration.py # Integration tests
+│       └── README.md         # OOLONG documentation
+├── docs/                     # General documentation
+│   ├── ARCHITECTURE.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   └── CRITICAL_REVIEW.md
 ├── main.py                   # Example demonstrations
-├── requirements.txt          # Dependencies
+├── requirements.txt          # Core dependencies
+├── requirements-oolong.txt   # OOLONG benchmark dependencies
 ├── .env.example             # Environment variable template
 └── README.md                # This file
 ```

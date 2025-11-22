@@ -1,0 +1,12 @@
+# OOLONG Benchmark Evaluation Dependencies
+# Install with: pip install -r requirements-oolong.txt
+
+# Core RLM dependencies
+-r requirements.txt
+
+# OOLONG-specific dependencies
+datasets>=2.14.0
+transformers>=4.30.0
+tiktoken>=0.5.0
+jsonlines>=3.1.0
+python-dateutil>=2.8.0
