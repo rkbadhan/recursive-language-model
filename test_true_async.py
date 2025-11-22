@@ -1,5 +1,5 @@
 """
-Test script to verify true async implementation with AsyncOpenAI.
+Test script to verify true async implementation with OpenAI's native AsyncOpenAI.
 
 This demonstrates the performance improvement of using true async vs fake async.
 """
@@ -7,30 +7,33 @@ This demonstrates the performance improvement of using true async vs fake async.
 import asyncio
 import time
 import os
-from rlm.utils.llm import AsyncOpenAIClient, OpenAIClient
+from rlm.utils.llm import OpenAIClient
+from openai import AsyncOpenAI
 
 
 async def test_async_client():
-    """Test that AsyncOpenAIClient works correctly."""
+    """Test that OpenAI's native AsyncOpenAI works correctly."""
     print("\n" + "="*80)
-    print("TEST: AsyncOpenAIClient Basic Functionality")
+    print("TEST: OpenAI's Native AsyncOpenAI Client")
     print("="*80)
 
-    client = AsyncOpenAIClient(
-        model="gpt-4o-mini",
-        track_costs=True
-    )
+    # Use OpenAI's native async client directly
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    model = "gpt-4o-mini"
 
     # Single query
     print("\n1. Testing single async query...")
     start = time.time()
-    response = await client.completion("Say 'Hello from async!'")
+    response = await client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": "Say 'Hello from async!'"}]
+    )
     elapsed = time.time() - start
 
-    print(f"   Response: {response}")
+    print(f"   Response: {response.choices[0].message.content}")
     print(f"   Time: {elapsed:.2f}s")
 
-    # Batch queries (true async)
+    # Batch queries (true async with asyncio.gather)
     print("\n2. Testing parallel batch queries (TRUE ASYNC)...")
     prompts = [
         "What is 2+2?",
@@ -39,8 +42,16 @@ async def test_async_client():
         "What is 5+5?",
     ]
 
+    async def single_query(prompt):
+        resp = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return resp.choices[0].message.content
+
     start = time.time()
-    responses = await client.completion_batch(prompts)
+    tasks = [single_query(p) for p in prompts]
+    responses = await asyncio.gather(*tasks)
     elapsed = time.time() - start
 
     print(f"   Sent {len(prompts)} queries in parallel")
@@ -49,18 +60,11 @@ async def test_async_client():
     for i, resp in enumerate(responses):
         print(f"      {i+1}. {resp.strip()}")
 
-    # Cost summary
-    print("\n3. Cost tracking:")
-    summary = client.get_cost_summary()
-    print(f"   Total calls: {summary['total_calls']}")
-    print(f"   Total tokens: {summary['total_tokens']}")
-    print(f"   Estimated cost: ${summary['estimated_cost_usd']:.4f}")
-
     # Clean up
     await client.close()
 
     print("\n" + "="*80)
-    print("✓ AsyncOpenAIClient test PASSED!")
+    print("✓ Native AsyncOpenAI test PASSED!")
     print("="*80)
 
 
@@ -92,12 +96,21 @@ async def compare_async_vs_sync():
     print(f"   Time: {sync_time:.2f}s")
     print(f"   Average per query: {sync_time/len(prompts):.2f}s")
 
-    # Test 2: Async client (parallel)
-    print("\n2. Async client (parallel)...")
-    async_client = AsyncOpenAIClient(model="gpt-4o-mini", track_costs=True)
+    # Test 2: Native async client (parallel)
+    print("\n2. Native AsyncOpenAI (parallel)...")
+    async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    model = "gpt-4o-mini"
+
+    async def single_query(prompt):
+        resp = await async_client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return resp.choices[0].message.content
 
     start = time.time()
-    async_results = await async_client.completion_batch(prompts)
+    tasks = [single_query(p) for p in prompts]
+    async_results = await asyncio.gather(*tasks)
     async_time = time.time() - start
 
     print(f"   Time: {async_time:.2f}s")
