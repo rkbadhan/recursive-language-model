@@ -1,8 +1,8 @@
-# True Async Implementation with AsyncOpenAI
+# True Async Implementation with Native AsyncOpenAI
 
 ## Overview
 
-The RLM implementation has been upgraded from **fake async** (executor-based) to **true async** using OpenAI's native `AsyncOpenAI` client. This provides significant performance improvements for parallel LLM queries.
+The RLM implementation has been upgraded from **fake async** (executor-based) to **true async** using OpenAI's native `AsyncOpenAI` client **directly**. No custom wrapper needed - we use the official client as-is for significant performance improvements.
 
 ## What Changed
 
@@ -74,28 +74,32 @@ results = llm_query_batch(prompts)
 
 ## Implementation Details
 
-### New AsyncOpenAIClient Class
+### Direct Use of AsyncOpenAI
 
-**Location:** `rlm/utils/llm.py`
+**No wrapper needed!** We use OpenAI's official `AsyncOpenAI` directly:
 
 ```python
-class AsyncOpenAIClient:
-    """True async wrapper for OpenAI API."""
+from openai import AsyncOpenAI
 
-    def __init__(self, api_key, model, track_costs=False):
-        self.client = AsyncOpenAI(api_key=api_key)
-        self._cost_lock = asyncio.Lock()  # Thread-safe cost tracking
-        # ...
+# Initialize
+client = AsyncOpenAI(api_key=api_key)
 
-    async def completion(self, messages) -> str:
-        """Single async completion."""
-        response = await self.client.chat.completions.create(...)
-        return response.choices[0].message.content
+# Single query
+response = await client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 
-    async def completion_batch(self, messages_list) -> List[str]:
-        """Parallel batch completions."""
-        tasks = [self.completion(msg) for msg in messages_list]
-        return await asyncio.gather(*tasks)
+# Batch queries (parallel with asyncio.gather)
+async def query(prompt):
+    resp = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return resp.choices[0].message.content
+
+tasks = [query(p) for p in prompts]
+results = await asyncio.gather(*tasks)
 ```
 
 ### Updated REPL Environment
@@ -103,23 +107,27 @@ class AsyncOpenAIClient:
 **Location:** `rlm/repl.py`
 
 ```python
+from openai import AsyncOpenAI
+
 class REPLEnv:
     def __init__(self, ...):
-        # Initialize true async client
-        self.async_client = AsyncOpenAIClient(
-            api_key=api_key,
-            model=recursive_model,
-            track_costs=False
-        )
+        # Use OpenAI's native async client directly
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.async_client = AsyncOpenAI(api_key=api_key)
+            self.async_model = recursive_model
 
     async def _batch_query_async(self, prompts):
-        """Uses true async client for batch queries."""
-        if self.async_client:
-            # True async I/O!
-            return await self.async_client.completion_batch(prompts)
-        else:
-            # Fallback to executor if needed
-            return await old_implementation(prompts)
+        """Uses native AsyncOpenAI with asyncio.gather."""
+        async def single_query(prompt):
+            response = await self.async_client.chat.completions.create(
+                model=self.async_model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.choices[0].message.content
+
+        tasks = [single_query(p) for p in prompts]
+        return await asyncio.gather(*tasks)
 ```
 
 ## Usage
@@ -146,21 +154,31 @@ results = await llm_query_batch_async([
 ### From Python
 
 ```python
-from rlm.utils.llm import AsyncOpenAIClient
+from openai import AsyncOpenAI
 import asyncio
 
 async def main():
-    client = AsyncOpenAIClient(model="gpt-4o-mini")
+    # Use OpenAI's native client directly
+    client = AsyncOpenAI()
 
     # Single query
-    response = await client.completion("Hello!")
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hello!"}]
+    )
+    print(response.choices[0].message.content)
 
-    # Batch queries (parallel)
-    responses = await client.completion_batch([
-        "What is 2+2?",
-        "What is 3+3?",
-        "What is 4+4?",
-    ])
+    # Batch queries (parallel with asyncio.gather)
+    async def query(prompt):
+        resp = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return resp.choices[0].message.content
+
+    tasks = [query(p) for p in ["What is 2+2?", "What is 3+3?", "What is 4+4?"]]
+    responses = await asyncio.gather(*tasks)
+    print(responses)
 
     await client.close()
 
