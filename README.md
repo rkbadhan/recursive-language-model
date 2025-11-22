@@ -47,6 +47,37 @@ context = load_1M_tokens()  # Store as REPL variable
 - Base GPT-5: Significant degradation
 - Handles contexts that don't fit in any model's window
 
+## 🎯 OOLONG Benchmark Evaluation
+
+You can now **evaluate RLM on the OOLONG benchmark** to validate these performance claims!
+
+### Quick Start
+
+```bash
+# Install OOLONG dependencies
+pip install -r requirements-oolong.txt
+
+# Test the integration
+python test_oolong_integration.py
+
+# Run evaluation on OOLONG-synth
+python eval_oolong.py --dataset synth --max-examples 10
+
+# Run evaluation on OOLONG-real
+python eval_oolong.py --dataset real --max-examples 10
+```
+
+### Full Documentation
+
+See [docs/OOLONG_BENCHMARK.md](docs/OOLONG_BENCHMARK.md) for:
+- Detailed setup instructions
+- Command-line options
+- Cost optimization tips
+- Result interpretation
+- Programmatic usage examples
+
+**Compare RLM vs baselines yourself!** 📊
+
 ## 📁 Project Structure
 
 ```
@@ -56,6 +87,7 @@ recursive-language-model/
 │   ├── rlm.py                # Base RLM abstract class
 │   ├── rlm_repl.py           # Main RLM implementation
 │   ├── repl.py               # REPL environment
+│   ├── oolong_adapter.py     # OOLONG benchmark adapter
 │   ├── utils/
 │   │   ├── llm.py            # OpenAI client wrapper
 │   │   ├── prompts.py        # Prompt templates
@@ -63,8 +95,15 @@ recursive-language-model/
 │   └── logger/
 │       ├── root_logger.py    # Root LM logger
 │       └── repl_logger.py    # REPL execution logger (Jupyter-style)
+├── docs/
+│   ├── OOLONG_BENCHMARK.md   # OOLONG evaluation guide
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   └── CRITICAL_REVIEW.md
 ├── main.py                   # Example demonstrations
-├── requirements.txt          # Dependencies
+├── eval_oolong.py            # OOLONG benchmark evaluation script
+├── test_oolong_integration.py # OOLONG integration tests
+├── requirements.txt          # Core dependencies
+├── requirements-oolong.txt   # OOLONG benchmark dependencies
 ├── .env.example             # Environment variable template
 └── README.md                # This file
 ```

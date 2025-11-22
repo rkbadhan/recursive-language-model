@@ -7,6 +7,14 @@ a REPL environment.
 """
 
 from .rlm import RLM
+from .rlm_repl import RLM_REPL
 
-__version__ = "0.1.0"
-__all__ = ["RLM"]
+# OOLONG benchmark integration (optional import)
+try:
+    from .oolong_adapter import RLMOolongAdapter, create_oolong_compatible_model
+    __all__ = ["RLM", "RLM_REPL", "RLMOolongAdapter", "create_oolong_compatible_model"]
+except ImportError:
+    # OOLONG dependencies not installed
+    __all__ = ["RLM", "RLM_REPL"]
+
+__version__ = "0.2.0"
