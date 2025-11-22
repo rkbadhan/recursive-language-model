@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List
 
 from rlm import RLM
-from rlm.utils.llm import OpenAIClient
+from rlm.utils.llm import OpenAIClient, AsyncOpenAIClient
 
 
 @dataclass
@@ -154,6 +154,17 @@ class REPLEnv:
         self.enable_logging = enable_logging
         self.parent_rlm_class = parent_rlm_class
 
+        # Initialize async client for true async support
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.async_client = AsyncOpenAIClient(
+                api_key=api_key,
+                model=recursive_model,
+                track_costs=False
+            )
+        else:
+            self.async_client = None
+
         # Initialize sub-RLM for recursive calls
         # Use full RLM if depth > 1 is allowed, otherwise use simple SubRLM
         if depth < max_depth and parent_rlm_class is not None:
@@ -266,7 +277,7 @@ class REPLEnv:
             """
             Query a sub-LLM from within the REPL environment (async version).
 
-            This is an async version that can be awaited in async code.
+            This is a TRUE async version using AsyncOpenAI client.
 
             Args:
                 prompt: The prompt to send to the LLM
@@ -274,10 +285,13 @@ class REPLEnv:
             Returns:
                 str: The LLM's response
             """
-            # For now, run the sync version in an executor
-            # Future: implement true async LLM calls
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self.sub_rlm.completion, prompt)
+            if self.async_client:
+                # Use true async client
+                return await self.async_client.completion(prompt)
+            else:
+                # Fallback to sync version in executor
+                loop = asyncio.get_event_loop()
+                return await loop.run_in_executor(None, self.sub_rlm.completion, prompt)
 
         def llm_query_batch(prompts: List[str]) -> List[str]:
             """
@@ -385,24 +399,30 @@ class REPLEnv:
         """
         Internal async method to run multiple LLM queries in parallel.
 
+        This now uses TRUE async I/O with AsyncOpenAI client for better performance.
+
         Args:
             prompts: List of prompts to process
 
         Returns:
             List of responses in the same order as prompts
         """
-        # Create tasks for all prompts
-        tasks = []
-        loop = asyncio.get_event_loop()
+        if self.async_client:
+            # Use true async client's batch method for optimal performance
+            return await self.async_client.completion_batch(prompts)
+        else:
+            # Fallback to executor-based parallelism
+            tasks = []
+            loop = asyncio.get_event_loop()
 
-        for prompt in prompts:
-            # Run each completion in an executor to avoid blocking
-            task = loop.run_in_executor(None, self.sub_rlm.completion, prompt)
-            tasks.append(task)
+            for prompt in prompts:
+                # Run each completion in an executor to avoid blocking
+                task = loop.run_in_executor(None, self.sub_rlm.completion, prompt)
+                tasks.append(task)
 
-        # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks)
-        return list(results)
+            # Wait for all tasks to complete
+            results = await asyncio.gather(*tasks)
+            return list(results)
 
     @contextmanager
     def _capture_output(self):
@@ -647,9 +667,21 @@ async def __async_exec():
         )
 
     def __del__(self):
-        """Clean up temporary directory on deletion."""
+        """Clean up temporary directory and async client on deletion."""
         try:
             import shutil
             shutil.rmtree(self.temp_dir)
         except:
             pass
+
+        # Close async client if it exists
+        if hasattr(self, 'async_client') and self.async_client:
+            try:
+                # Try to close the async client gracefully
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.async_client.close())
+                else:
+                    loop.run_until_complete(self.async_client.close())
+            except:
+                pass
