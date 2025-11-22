@@ -20,6 +20,7 @@ from typing import Optional, Dict, Any, Union, List
 
 from rlm import RLM
 from rlm.utils.llm import OpenAIClient
+from openai import AsyncOpenAI
 
 
 @dataclass
@@ -64,12 +65,9 @@ class SubRLM(RLM):
         Args:
             model: Model identifier to use for recursive calls
         """
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
-
         self.model = model
-        self.client = OpenAIClient(api_key=api_key, model=model)
+        # OpenAIClient will validate API key and raise clear error if missing
+        self.client = OpenAIClient(model=model)
 
     def completion(
         self,
@@ -86,16 +84,8 @@ class SubRLM(RLM):
         Returns:
             str: The LLM's response
         """
-        try:
-            response = self.client.completion(
-                messages=prompt,
-                timeout=300
-            )
-            return response
-
-        except Exception as e:
-            error_msg = f"Error in sub-RLM call: {str(e)}"
-            return error_msg
+        # Let exceptions propagate - caller should handle errors
+        return self.client.completion(messages=prompt, timeout=300)
 
     def cost_summary(self) -> Dict[str, Any]:
         """Not implemented for SubRLM."""
@@ -153,6 +143,11 @@ class REPLEnv:
         self.recursive_model = recursive_model
         self.enable_logging = enable_logging
         self.parent_rlm_class = parent_rlm_class
+
+        # Initialize async client for true async support (using OpenAI's native AsyncOpenAI)
+        # Let AsyncOpenAI handle validation - it will fail with clear error if no API key
+        self.async_client = AsyncOpenAI()  # Uses OPENAI_API_KEY env var by default
+        self.async_model = recursive_model
 
         # Initialize sub-RLM for recursive calls
         # Use full RLM if depth > 1 is allowed, otherwise use simple SubRLM
@@ -266,7 +261,7 @@ class REPLEnv:
             """
             Query a sub-LLM from within the REPL environment (async version).
 
-            This is an async version that can be awaited in async code.
+            This uses OpenAI's native AsyncOpenAI client for true async I/O.
 
             Args:
                 prompt: The prompt to send to the LLM
@@ -274,10 +269,14 @@ class REPLEnv:
             Returns:
                 str: The LLM's response
             """
-            # For now, run the sync version in an executor
-            # Future: implement true async LLM calls
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self.sub_rlm.completion, prompt)
+            # Use OpenAI's native async client directly
+            messages = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
+            response = await self.async_client.chat.completions.create(
+                model=self.async_model,
+                messages=messages,
+                temperature=0.7,
+            )
+            return response.choices[0].message.content
 
         def llm_query_batch(prompts: List[str]) -> List[str]:
             """
@@ -385,22 +384,25 @@ class REPLEnv:
         """
         Internal async method to run multiple LLM queries in parallel.
 
+        Uses OpenAI's native AsyncOpenAI client with asyncio.gather for true async I/O.
+
         Args:
             prompts: List of prompts to process
 
         Returns:
             List of responses in the same order as prompts
         """
-        # Create tasks for all prompts
-        tasks = []
-        loop = asyncio.get_event_loop()
+        # Use OpenAI's native async client with asyncio.gather for parallel execution
+        async def single_query(prompt: str) -> str:
+            messages = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
+            response = await self.async_client.chat.completions.create(
+                model=self.async_model,
+                messages=messages,
+                temperature=0.7,
+            )
+            return response.choices[0].message.content
 
-        for prompt in prompts:
-            # Run each completion in an executor to avoid blocking
-            task = loop.run_in_executor(None, self.sub_rlm.completion, prompt)
-            tasks.append(task)
-
-        # Wait for all tasks to complete
+        tasks = [single_query(prompt) for prompt in prompts]
         results = await asyncio.gather(*tasks)
         return list(results)
 
@@ -647,9 +649,17 @@ async def __async_exec():
         )
 
     def __del__(self):
-        """Clean up temporary directory on deletion."""
+        """Clean up temporary directory and async client on deletion."""
         try:
             import shutil
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+        except:
+            pass
+
+        # Close AsyncOpenAI client (it handles its own cleanup gracefully)
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_closed():
+                loop.run_until_complete(self.async_client.close())
         except:
             pass

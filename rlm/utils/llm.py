@@ -3,6 +3,8 @@ LLM Client wrapper for OpenAI API.
 
 This module provides a unified interface for interacting with language models,
 abstracting away API-specific details and providing consistent error handling.
+
+Note: For async support, use OpenAI's native AsyncOpenAI directly - no wrapper needed!
 """
 
 import os
